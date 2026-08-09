@@ -17,7 +17,7 @@
 
 ## Disk
 
-VictoriaMetrics data: volume `vm-data`. At 15 hosts / 60s / 7d expect ~0.5–1.5 GB.
+VictoriaMetrics data: volume `vm-data`. Size grows with host count, scrape interval, and retention (`-retentionPeriod`).
 
 ```bash
 docker exec vm du -sh /victoria-metrics-data

@@ -28,7 +28,7 @@ cd monitoring && docker compose up -d
 docker compose -f monitoring/docker-compose.yml logs vmagent | tail -20
 ```
 
-## Add remote VPS (6–15 hosts)
+## Add remote VPS
 
 On each remote server:
 
@@ -51,9 +51,11 @@ On monitoring VPS, edit `monitoring/hosts/targets.json` (see `targets.example.js
 
 vmagent reloads targets every 5 minutes.
 
+How many hosts you can scrape depends on the monitoring VPS CPU/RAM/disk and retention — see hardware notes in the [root README](../README.md#требования-к-железу).
+
 ## Resource limits
 
-Compose sets `mem_limit` / `cpus` for 2 GB VPS. See [RUNBOOK.md](./RUNBOOK.md).
+Compose sets default `mem_limit` / `cpus` suitable for a small VPS; raise them if your host has more resources. See [RUNBOOK.md](./RUNBOOK.md).
 
 ## Metrics reference
 

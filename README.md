@@ -1,105 +1,123 @@
 # Billing + Monitoring
 
-Open-source panel for **VPN / VPS fleet operators**: sync balances and due dates from hosting providers, remind you in Telegram before renewals, and optionally monitor hosts with VictoriaMetrics + Grafana.
+Панель для **владельцев VPN / VPS-флотов**: сама забирает балансы и даты оплаты у хостеров, напоминает в Telegram и (по желанию) мониторит серверы через VictoriaMetrics + Grafana.
 
-No manual «paid» checkbox — after you pay at the provider, the next sync refreshes the data.
+Ручной галочки «оплачено» нет — после оплаты у провайдера следующий sync обновляет данные.
 
-## Features
+[English README](README.en.md)
 
-- Multi-provider billing sync (API or Playwright where needed)
-- Encrypted provider credentials at rest (`CREDENTIALS_KEY`)
-- Telegram reminders + fleet commands (`/list`, `/due`, `/sync`, `/status`, …)
-- Optional monitoring stack: VictoriaMetrics, vmagent, Grafana, node_exporter, ICMP blackbox
-- Docker-ready single-VPS deploy
+![Архитектура](docs/images/readme-architecture.png)
 
-## Providers
+## Возможности
 
-| ID | Method |
+- Синхронизация нескольких провайдеров (API или Playwright)
+- Креды провайдеров шифруются на диске (`CREDENTIALS_KEY`)
+- Telegram: напоминания и команды флота (`/list`, `/due`, `/sync`, `/status`, …)
+- Опциональный мониторинг: VictoriaMetrics, vmagent, Grafana, node_exporter, ICMP
+- Деплой одной VPS через Docker
+
+![Панель биллинга](docs/images/readme-panel.png)
+
+## Требования к железу
+
+Оценка для **биллинг-панели + monitoring stack** на одной машине. Число хостов во флоте не ограничено софтом — упирается в CPU/RAM/диск и retention метрик.
+
+| | Минимум | Рекомендуется |
+| --- | --- | --- |
+| CPU | 1 vCPU | 2 vCPU |
+| RAM | 1 GB (только billing) / 2 GB (billing + monitoring) | 2–4 GB |
+| Диск | 10 GB SSD | 20+ GB SSD |
+| ОС | Linux x86_64, Docker 24+ или Node.js 20+ | Ubuntu 22.04+ |
+
+Запас по диску зависит от retention VictoriaMetrics и числа scrape-целей. На маленьком диске укоротите `-retentionPeriod` в `monitoring/docker-compose.yml` и включите ротацию Docker-логов.
+
+## Провайдеры
+
+| ID | Способ |
 | --- | --- |
 | `landvps` | BILLmanager API (`my.landvps.ru`) |
-| `vpsville` | Playwright (client area) |
-| `hsvds` | Playwright; due ≈ balance / daily spend |
-| `play2go` | Billing panel login; optional Pterodactyl client key |
+| `vpsville` | Playwright (ЛК) |
+| `hsvds` | Playwright; due ≈ баланс / суточный расход |
+| `play2go` | Логин в биллинг; опционально Pterodactyl client key |
 | `yun62` | Playwright (`62yun.ru`) |
-| `kyonix` | JWT API on `beta.kyonix.com`; optional VMmanager merge (`vm.kyonix.com`) |
+| `kyonix` | JWT API `beta.kyonix.com`; опционально VMmanager (`vm.kyonix.com`) |
 
-## Quick start (local)
+## Быстрый старт (локально)
 
 ```bash
 cp .env.example .env
-# Set PANEL_PASSWORD, CREDENTIALS_KEY (32+ chars), optional Telegram bot
+# PANEL_PASSWORD, CREDENTIALS_KEY (32+ символов), при желании Telegram
 
 npm install
 npx playwright install chromium
 npm run dev
 ```
 
-Open http://localhost:3080 — password from `PANEL_PASSWORD`.
+Открой http://localhost:3080 — пароль из `PANEL_PASSWORD`.
 
-Add provider accounts in the UI → **Sync all**.
+Добавь аккаунты провайдеров → **Синхронизировать всё**.
 
 ## Docker
 
 ```bash
 cp .env.example .env
-# edit .env
+# отредактируй .env
 docker compose up -d --build
 ```
 
-SQLite + Playwright sessions live under `./data` (gitignored).
+SQLite и сессии Playwright лежат в `./data` (в git не попадают).
 
-## Telegram bot (your panel)
+## Telegram-бот панели
 
-1. Create a bot with [@BotFather](https://t.me/BotFather).
-2. Message `/start`, get `chat_id` (`@userinfobot` or getUpdates).
-3. Put in `.env`:
+1. Создай бота у [@BotFather](https://t.me/BotFather).
+2. Напиши `/start`, узнай `chat_id`.
+3. Пропиши в `.env`:
 
 ```env
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
 ```
 
-Reminders: 7/3/1/0 days before `due_at`, and when balance ≤ `BALANCE_THRESHOLD` (default 500).
+Напоминания: за 7/3/1/0 дней до `due_at` и при балансе ≤ `BALANCE_THRESHOLD` (по умолчанию 500).
 
 ## Kyonix
 
-- Primary: email + password for https://beta.kyonix.com → VDS list, cost, next payment, balance.
-- Optional: same credentials against https://vm.kyonix.com (VMmanager) to enrich/merge VMs by id/IP/name.
+- Основной путь: email + password на https://beta.kyonix.com → VDS, стоимость, дата оплаты, баланс.
+- Опционально: те же креды на https://vm.kyonix.com для merge ВМ по id/IP/имени.
 
-## Scrapers
+## Мониторинг
 
-Panels without a public API are scraped with Playwright. Layouts change — if sync fails with a parse error, open the error in the UI and adjust selectors.
-
-Debug: `PLAYWRIGHT_HEADLESS=0`. Browser sessions: `DATA_DIR/sessions/`.
-
-## Security (read before publishing forks)
-
-- **Never commit** `.env`, `monitoring/.env`, `data/`, or real `monitoring/hosts/targets.json` / `ping-targets.json`.
-- Panel password: `PANEL_PASSWORD`. Provider secrets: AES-GCM with `CREDENTIALS_KEY`.
-- Copy host inventories from `*.example.json` only.
-- See [SECURITY.md](SECURITY.md).
-
-## Scripts
-
-- `npm run dev` — development (tsx watch)
-- `npm run build && npm start` — production
-- `npm run sync` — one-shot sync of all accounts
-- `npm run monitoring:up` — VictoriaMetrics + Grafana (see `monitoring/README.md`)
-
-## Monitoring
+![Grafana Fleet Overview](docs/images/readme-grafana.png)
 
 ```bash
 cp monitoring/.env.example monitoring/.env
 cp monitoring/hosts/targets.example.json monitoring/hosts/targets.json
 cp monitoring/hosts/ping-targets.example.json monitoring/hosts/ping-targets.json
-# edit IPs/labels
+# подставь свои IP и labels
 npm run monitoring:up
 ```
 
-Grafana: http://localhost:3000 · Billing metrics: http://localhost:3080/metrics
+- Grafana: http://localhost:3000  
+- Метрики billing: http://localhost:3080/metrics  
 
-Details: [monitoring/README.md](monitoring/README.md)
+Подробнее: [monitoring/README.md](monitoring/README.md)
 
-## License
+## Безопасность
 
-MIT — see [LICENSE](LICENSE).
+- **Не коммить** `.env`, `monitoring/.env`, `data/`, реальные `targets.json` / `ping-targets.json`.
+- Пароль панели: `PANEL_PASSWORD`. Креды: AES-GCM + `CREDENTIALS_KEY`.
+- См. [SECURITY.md](SECURITY.md).
+
+## Скрипты
+
+- `npm run dev` — разработка
+- `npm run build && npm start` — production
+- `npm run sync` — разовый sync всех аккаунтов
+- `npm run monitoring:up` — поднять monitoring stack
+
+## Лицензия
+
+Свободно **использовать и изменять**, в том числе для своего VPN/VPS-бизнеса.  
+**Продавать** это ПО (как продукт / платный SaaS из этого кода) — нельзя.
+
+Полный текст: [LICENSE](LICENSE). Коммерческая лицензия на продажу — по договорённости с автором.

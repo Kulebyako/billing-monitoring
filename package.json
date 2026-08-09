@@ -2,6 +2,7 @@
   "name": "server-billing",
   "version": "1.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Auto-sync VPS billing panels + Telegram payment reminders",
   "type": "module",
   "scripts": {
