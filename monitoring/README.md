@@ -20,7 +20,11 @@ cd monitoring && docker compose up -d
 3. Open:
    - Grafana: http://localhost:3000 (admin / password from `monitoring/.env`)
    - VictoriaMetrics UI: http://localhost:8428/vmui
-   - Dashboards: **Fleet Overview**, **Billing Ops**, **Security Overview**, **Server Availability**
+   - Provisioned dashboards:
+     - **Fleet Overview** — uptime, CPU/RAM, network
+     - **Billing Ops** — due dates, low balance, sync errors
+     - **Server Availability** — ICMP ping / RTT
+     - **Security Overview** — UFW / fail2ban
 
 4. Check targets in vmagent logs:
 

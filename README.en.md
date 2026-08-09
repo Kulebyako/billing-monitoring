@@ -89,6 +89,15 @@ Reminders: 7/3/1/0 days before `due_at`, and when balance ≤ `BALANCE_THRESHOLD
 
 ![Grafana Fleet Overview](docs/images/readme-grafana.png)
 
+Grafana ships with several dashboards:
+
+| Dashboard | Purpose |
+| --- | --- |
+| **Fleet Overview** | Fleet uptime, CPU/RAM, network by host |
+| **Billing Ops** | Due dates, low balance, sync errors, spend |
+| **Server Availability** | ICMP ping UP/DOWN, RTT by host |
+| **Security Overview** | UFW blocks, fail2ban, top attacked hosts |
+
 ```bash
 cp monitoring/.env.example monitoring/.env
 cp monitoring/hosts/targets.example.json monitoring/hosts/targets.json

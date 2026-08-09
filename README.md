@@ -89,6 +89,15 @@ TELEGRAM_CHAT_ID=...
 
 ![Grafana Fleet Overview](docs/images/readme-grafana.png)
 
+В Grafana из коробки несколько дашбордов:
+
+| Дашборд | Для чего |
+| --- | --- |
+| **Fleet Overview** | Аптайм флота, CPU/RAM, сеть по хостам |
+| **Billing Ops** | Сроки оплаты, низкий баланс, ошибки sync, расход |
+| **Server Availability** | ICMP ping UP/DOWN, RTT по хостам |
+| **Security Overview** | UFW blocks, fail2ban, атакованные хосты |
+
 ```bash
 cp monitoring/.env.example monitoring/.env
 cp monitoring/hosts/targets.example.json monitoring/hosts/targets.json
