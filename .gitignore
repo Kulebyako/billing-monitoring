@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.env
+monitoring/.env
+*.db
+*.db-journal
+playwright/.auth/
+sessions/
+monitoring/hosts/targets.json
+monitoring/hosts/ping-targets.json

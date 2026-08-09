@@ -1,0 +1,157 @@
+:root {
+  --bg: #0f1419;
+  --panel: #1a222c;
+  --line: #2a3542;
+  --text: #e8eef4;
+  --muted: #8b9aab;
+  --accent: #3d9cf0;
+  --danger: #e85d5d;
+  --warn: #e6b84d;
+  --ok: #4caf82;
+  --radius: 10px;
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 10% -10%, #1a2a3a, transparent), var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+a { color: var(--accent); }
+.muted { color: var(--muted); font-size: 0.92rem; }
+.error { color: var(--danger); }
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.5rem 1.75rem 0.5rem;
+}
+.top h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.02em; }
+.top-actions { display: flex; gap: 0.5rem; }
+
+main { padding: 0.5rem 1.75rem 3rem; display: grid; gap: 1.75rem; }
+
+button, .ghost {
+  background: var(--accent);
+  color: #061018;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.ghost, .ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+button:disabled { opacity: 0.5; cursor: wait; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.card strong { display: block; font-size: 1.6rem; margin-top: 0.25rem; }
+.card.warn strong { color: var(--warn); }
+.card.danger strong { color: var(--danger); }
+.card.ok strong { color: var(--ok); }
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.section-head h2 { margin: 0; font-size: 1.15rem; }
+.filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { padding: 0.65rem 0.75rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+tr:last-child td { border-bottom: 0; }
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #243041;
+}
+.badge.active { background: #1e3a2f; color: #8ddeb8; }
+.badge.suspended, .badge.missing { background: #3a2424; color: #f0a0a0; }
+.due-soon { color: var(--warn); font-weight: 600; }
+.due-over { color: var(--danger); font-weight: 700; }
+
+.panel {
+  margin-top: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.panel h3 { margin: 0 0 0.75rem; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+label { display: grid; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+input, select, textarea {
+  background: #0d1218;
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+}
+.hint { margin: 0 0 0.75rem; }
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+.login-card {
+  width: min(380px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.login-card h1 { margin: 0; }
+
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 1rem;
+  width: min(420px, 92vw);
+}
+dialog::backdrop { background: rgba(0,0,0,0.55); }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; }
+
+@media (max-width: 720px) {
+  .top { flex-direction: column; }
+  .section-head { flex-direction: column; align-items: flex-start; }
+}

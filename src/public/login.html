@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Вход — Server Billing</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="login-page">
+  <form id="login" class="login-card">
+    <h1>Server Billing</h1>
+    <p class="muted">Панель синхронизации биллингов</p>
+    <label>Пароль
+      <input type="password" name="password" autocomplete="current-password" required />
+    </label>
+    <button type="submit">Войти</button>
+    <p id="err" class="error" hidden></p>
+  </form>
+  <script>
+    document.getElementById('login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = new FormData(e.target).get('password');
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const err = document.getElementById('err');
+        err.hidden = false;
+        err.textContent = 'Неверный пароль';
+        return;
+      }
+      location.href = '/';
+    });
+  </script>
+</body>
+</html>

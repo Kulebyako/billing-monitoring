@@ -1,0 +1,56 @@
+# vmagent scrape config — 60s interval, host-level only (no Docker metrics).
+global:
+  scrape_interval: 60s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: server-billing
+
+scrape_configs:
+  # Local node_exporter (monitoring compose)
+  - job_name: node-local
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          host: server-billing
+          env: prod
+          role: monitoring
+          provider: play2go
+
+  # server-billing app metrics (host machine — adjust port if needed)
+  - job_name: server-billing
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['host.docker.internal:3080']
+        labels:
+          service: server-billing
+          env: prod
+          host: server-billing
+          provider: play2go
+  # Remote VPS hosts — edit hosts/targets.json (see hosts/targets.example.json)
+  - job_name: node-remote
+    file_sd_configs:
+      - files:
+          - /etc/vmagent/targets.json
+
+  # ICMP ping availability — edit hosts/ping-targets.json
+  - job_name: blackbox-icmp
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    file_sd_configs:
+      - files:
+          - /etc/vmagent/ping-targets.json
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Phase 3 (optional): Docker container metrics — enable per-host only
+  # - job_name: cadvisor
+  #   static_configs:
+  #     - targets: ['10.0.0.5:8080']
+  #       labels:
+  #         host: example-docker-host

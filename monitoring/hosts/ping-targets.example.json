@@ -1,0 +1,20 @@
+[
+  {
+    "targets": ["203.0.113.10"],
+    "labels": {
+      "host": "vps-example-1",
+      "env": "prod",
+      "role": "app",
+      "provider": "landvps"
+    }
+  },
+  {
+    "targets": ["203.0.113.11"],
+    "labels": {
+      "host": "vps-example-2",
+      "env": "prod",
+      "role": "proxy",
+      "provider": "kyonix"
+    }
+  }
+]

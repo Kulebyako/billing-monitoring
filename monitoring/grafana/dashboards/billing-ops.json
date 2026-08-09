@@ -1,0 +1,424 @@
+{
+  "uid": "billing-ops",
+  "title": "Billing Ops",
+  "tags": ["billing", "server-billing"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 5,
+  "style": "dark",
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "links": [
+    {
+      "title": "Открыть панель",
+      "url": "http://localhost:3080",
+      "type": "link",
+      "icon": "external link",
+      "targetBlank": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 100,
+      "type": "text",
+      "title": "",
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "# Server Billing\n[Открыть панель управления →](http://localhost:3080)"
+      }
+    },
+    {
+      "id": 101,
+      "type": "text",
+      "title": "",
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 2 },
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "**Сводка** — те же цифры, что на главной странице. Срочная оплата и ошибки sync — **красные** при проблеме. Низкий баланс — **жёлтый**. Остальное — нейтрально/зелёное."
+      }
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Срочная оплата",
+      "description": "Сколько VPS нужно оплатить в ближайшие 7 дней",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_urgent_due_total",
+          "instant": true,
+          "legendFormat": "серверов",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4caf82", "value": null },
+              { "color": "#e85d5d", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Низкий баланс",
+      "description": "Сколько услуг с балансом ниже порога (нужно пополнить)",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_low_balance_total",
+          "instant": true,
+          "legendFormat": "услуг",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4caf82", "value": null },
+              { "color": "#e6b84d", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Ошибки синхронизации",
+      "description": "Аккаунты провайдеров, у которых последний sync завершился с ошибкой",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_sync_error_accounts",
+          "instant": true,
+          "legendFormat": "аккаунтов",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4caf82", "value": null },
+              { "color": "#e85d5d", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Всего услуг",
+      "description": "Количество активных VPS и сервисов в учёте",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "sum(billing_services_total)",
+          "instant": true,
+          "legendFormat": "услуг",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "#3d9cf0" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Расход в месяц",
+      "description": "Суммарная стоимость всех услуг за месяц",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_monthly_cost_total",
+          "instant": true,
+          "legendFormat": "₽/мес",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyRUB",
+          "decimals": 0,
+          "noValue": "0",
+          "color": { "mode": "fixed", "fixedColor": "#e8eef4" }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "К доплате",
+      "description": "Сколько ещё нужно доплатить до конца текущего месяца",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_remaining_month_cost",
+          "instant": true,
+          "legendFormat": "₽",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyRUB",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4caf82", "value": null },
+              { "color": "#e6b84d", "value": 500 },
+              { "color": "#e85d5d", "value": 2000 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      }
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "Детали",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
+      "collapsed": false
+    },
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Услуги по статусу",
+      "description": "Сколько услуг active / suspended / missing",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_services_total",
+          "instant": true,
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "active" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#4caf82", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "suspended" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#e85d5d", "mode": "fixed" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Синхронизация провайдеров",
+      "description": "Когда каждый провайдер последний раз успешно синхронизировался",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        {
+          "expr": "billing_last_sync_timestamp",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "time() - billing_last_sync_timestamp",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "billing_sync_duration_seconds",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true, "service": true, "env": true },
+            "renameByName": {
+              "provider": "Провайдер",
+              "Value #A": "Последний sync",
+              "Value #B": "Давно (сек)",
+              "Value #C": "Длительность (сек)"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Давно (сек)", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Давно (сек)" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "#4caf82", "value": null },
+                    { "color": "#e6b84d", "value": 3600 },
+                    { "color": "#e85d5d", "value": 86400 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Длительность (сек)" },
+            "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 1 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Последний sync" },
+            "properties": [{ "id": "unit", "value": "dateTimeFromNow" }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "История: срочные оплаты и низкий баланс",
+      "description": "Как менялись показатели за последние 24 часа",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "datasource": { "type": "prometheus", "uid": "VictoriaMetrics" },
+      "targets": [
+        { "expr": "billing_urgent_due_total", "legendFormat": "Срочная оплата (≤7 дн.)", "refId": "A" },
+        { "expr": "billing_low_balance_total", "legendFormat": "Низкий баланс", "refId": "B" },
+        { "expr": "billing_sync_error_accounts", "legendFormat": "Ошибки sync", "refId": "C" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Срочная оплата (≤7 дн.)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#e6b84d", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Низкий баланс" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#e85d5d", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Ошибки sync" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#3d9cf0", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      }
+    }
+  ]
+}

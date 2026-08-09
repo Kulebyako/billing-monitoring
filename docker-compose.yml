@@ -1,0 +1,27 @@
+services:
+  server-billing:
+    build: .
+    ports:
+      - "3080:3080"
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /data
+      TZ: ${TZ:-Europe/Moscow}
+      VICTORIAMETRICS_URL: ${VICTORIAMETRICS_URL:-http://vm:8428}
+    volumes:
+      - ./data:/data
+    networks:
+      - default
+      - monitoring
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  monitoring:
+    external: true
+    name: monitoring_monitoring

@@ -1,0 +1,136 @@
+# VictoriaMetrics stack — lightweight monitoring for server-billing infra.
+# Phase 0: local. Phase 1: same VPS as billing (1 vCPU / 2 GB RAM).
+#
+#   cd monitoring && docker compose up -d
+#   Grafana: http://localhost:3000 (admin / see .env)
+#   VictoriaMetrics UI: http://localhost:8428/vmui
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.106.1
+    container_name: vm
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - -storageDataPath=/victoria-metrics-data
+      - -retentionPeriod=7d
+      - -httpListenAddr=:8428
+    volumes:
+      - vm-data:/victoria-metrics-data
+    ports:
+      - "127.0.0.1:8428:8428"
+    mem_limit: 512m
+    cpus: 0.5
+    networks:
+      - monitoring
+
+  vmagent:
+    image: victoriametrics/vmagent:v1.106.1
+    container_name: vmagent
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - victoriametrics
+    command:
+      - -promscrape.config=/etc/vmagent/scrape.yml
+      - -remoteWrite.url=http://victoriametrics:8428/api/v1/write
+      - -remoteWrite.maxDiskUsagePerURL=500MB
+    volumes:
+      - ./vmagent/scrape.yml:/etc/vmagent/scrape.yml:ro
+      - ./hosts/targets.json:/etc/vmagent/targets.json:ro
+      - ./hosts/ping-targets.json:/etc/vmagent/ping-targets.json:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    mem_limit: 128m
+    cpus: 0.25
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - victoriametrics
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - monitoring
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.26.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    cap_add:
+      - NET_RAW
+    mem_limit: 32m
+    cpus: 0.1
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    container_name: node-exporter
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.meminfo
+      - --collector.diskstats
+      - --collector.filesystem
+      - --collector.netdev
+      - --collector.loadavg
+      - --collector.uname
+      - --collector.textfile
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /var/lib/node_exporter/textfile:/var/lib/node_exporter/textfile:ro
+    ports:
+      - "127.0.0.1:9100:9100"
+    mem_limit: 64m
+    cpus: 0.1
+    networks:
+      - monitoring
+
+  # Phase 2 (optional): Loki — uncomment when RAM allows (see monitoring/RUNBOOK.md)
+  # loki:
+  #   image: grafana/loki:3.4.2
+  #   ...
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  vm-data:
+  grafana-data:

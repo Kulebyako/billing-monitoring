@@ -1,0 +1,36 @@
+{
+  "name": "server-billing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auto-sync VPS billing panels + Telegram payment reminders",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "sync": "tsx src/cli-sync.ts",
+    "monitoring:up": "docker compose -f monitoring/docker-compose.yml --env-file monitoring/.env.example up -d",
+    "monitoring:down": "docker compose -f monitoring/docker-compose.yml down",
+    "monitoring:logs": "docker compose -f monitoring/docker-compose.yml logs -f"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "playwright": "1.50.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.4",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

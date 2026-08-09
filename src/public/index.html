@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Server Billing</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Server Billing</h1>
+      <p class="muted">Автосинк провайдеров · напоминания в Telegram</p>
+    </div>
+    <div class="top-actions">
+      <button id="btn-sync" type="button">Синхронизировать всё</button>
+      <button id="btn-logout" type="button" class="ghost">Выйти</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards" id="summary"></section>
+
+    <section>
+      <div class="section-head">
+        <h2>Услуги</h2>
+        <div class="filters">
+          <select id="filter-provider"><option value="">Все провайдеры</option></select>
+          <select id="filter-tag"><option value="">Все теги</option>
+            <option value="vpn">vpn</option>
+            <option value="proxy">proxy</option>
+            <option value="public">public</option>
+            <option value="private">private</option>
+            <option value="wheelko">wheelko</option>
+            <option value="other">other</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="services">
+          <thead>
+            <tr>
+              <th>Провайдер</th>
+              <th>Имя</th>
+              <th>IP</th>
+              <th>До</th>
+              <th>Стоимость</th>
+              <th>Баланс</th>
+              <th>Статус</th>
+              <th>Тег</th>
+              <th>Заметка</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Аккаунты провайдеров</h2>
+      </div>
+      <div class="table-wrap">
+        <table id="accounts">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Провайдер</th>
+              <th>Метка</th>
+              <th>Последний sync</th>
+              <th>Ошибка</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <form id="add-account" class="panel">
+        <h3>Добавить аккаунт</h3>
+        <div class="grid">
+          <label>Провайдер
+            <select name="provider" id="provider-select" required></select>
+          </label>
+          <label>Метка
+            <input name="label" placeholder="основной" />
+          </label>
+          <label>Base URL (опционально)
+            <input name="baseUrl" placeholder="https://…" />
+          </label>
+          <label>Login / email
+            <input name="login" autocomplete="username" />
+          </label>
+          <label>Password
+            <input name="password" type="password" autocomplete="new-password" />
+          </label>
+          <label>Token (если нужен провайдеру)
+            <input name="token" placeholder="API token" />
+          </label>
+        </div>
+        <p class="muted hint" id="provider-hint"></p>
+        <button type="submit">Сохранить</button>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="edit-dlg">
+    <form method="dialog" id="edit-form">
+      <h3>Тег и заметка</h3>
+      <input type="hidden" name="id" />
+      <label>Тег
+        <select name="tag">
+          <option value="">—</option>
+          <option value="vpn">vpn</option>
+          <option value="proxy">proxy</option>
+          <option value="public">public</option>
+          <option value="private">private</option>
+          <option value="wheelko">wheelko</option>
+          <option value="other">other</option>
+        </select>
+      </label>
+      <label>Заметка
+        <textarea name="notes" rows="3"></textarea>
+      </label>
+      <div class="dlg-actions">
+        <button value="cancel" class="ghost">Отмена</button>
+        <button id="edit-save" value="default">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
