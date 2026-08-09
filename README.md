@@ -16,7 +16,7 @@
 - Опциональный мониторинг: VictoriaMetrics, vmagent, Grafana, node_exporter, ICMP
 - Деплой одной VPS через Docker
 
-![Панель биллинга](docs/images/readme-panel.png)
+![Панель биллинга](docs/images/billing-panel.png)
 
 ## Требования к железу
 

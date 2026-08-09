@@ -16,7 +16,7 @@ No manual «paid» checkbox — after you pay at the provider, the next sync ref
 - Optional monitoring: VictoriaMetrics, vmagent, Grafana, node_exporter, ICMP
 - Docker-ready single-VPS deploy
 
-![Billing panel](docs/images/readme-panel.png)
+![Billing panel](docs/images/billing-panel.png)
 
 ## Hardware requirements
 
