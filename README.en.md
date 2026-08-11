@@ -128,3 +128,15 @@ Free to **use and modify**, including for your own VPN/VPS business.
 **Selling** this software (as a product / paid SaaS of this code) is not allowed.
 
 Full text: [LICENSE](LICENSE). Contact the author for a commercial sell license.
+
+## Referral Links
+
+If this project was useful, you can support it by registering with these hosting providers via my referral links:
+
+- `vpsville` — [http://vpsville.ru/?ref=64224](http://vpsville.ru/?ref=64224)
+- `hsvds` — [https://hsvds.ru/signup/?refid=20260304-2660750-252](https://hsvds.ru/signup/?refid=20260304-2660750-252)
+- `62yun` — [https://62yun.ru/?refid=188175](https://62yun.ru/?refid=188175)
+- `play2go` — [https://play2go.cloud/?ref_id=7STlUOlmq9E](https://play2go.cloud/?ref_id=7STlUOlmq9E)
+- `kyonix` — [https://t.me/kyonix_bot?start=p48YNWCV](https://t.me/kyonix_bot?start=p48YNWCV)
+- `landvps` — [https://landvps.ru/?from=23409](https://landvps.ru/?from=23409)
+

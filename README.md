@@ -130,3 +130,15 @@ npm run monitoring:up
 **Продавать** это ПО (как продукт / платный SaaS из этого кода) — нельзя.
 
 Полный текст: [LICENSE](LICENSE). Коммерческая лицензия на продажу — по договорённости с автором.
+
+## Реферальные ссылки
+
+Если проект был полезен, можно регистрироваться у хостеров по моим реферальным ссылкам:
+
+- `vpsville` — [http://vpsville.ru/?ref=64224](http://vpsville.ru/?ref=64224)
+- `hsvds` — [https://hsvds.ru/signup/?refid=20260304-2660750-252](https://hsvds.ru/signup/?refid=20260304-2660750-252)
+- `62yun` — [https://62yun.ru/?refid=188175](https://62yun.ru/?refid=188175)
+- `play2go` — [https://play2go.cloud/?ref_id=7STlUOlmq9E](https://play2go.cloud/?ref_id=7STlUOlmq9E)
+- `kyonix` — [https://t.me/kyonix_bot?start=p48YNWCV](https://t.me/kyonix_bot?start=p48YNWCV)
+- `landvps` — [https://landvps.ru/?from=23409](https://landvps.ru/?from=23409)
+
