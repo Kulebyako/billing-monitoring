@@ -13,7 +13,7 @@ const hints = {
     'Биллинг: email+password beta.kyonix.com (VDS, баланс, даты). Опционально те же креды для vm.kyonix.com (IP merge).',
 };
 
-const VIEW_TITLES = { overview: 'Обзор', services: 'Услуги', providers: 'Провайдеры' };
+const VIEW_TITLES = { overview: 'Обзор', services: 'Услуги', providers: 'Провайдеры', monitor: 'Мониторинг' };
 const STATE_TITLES = { ok: 'синхронизированы', failed: 'с ошибкой', never: 'не синхронизированы', off: 'выключены' };
 const SERVICE_STATUS = {
   active: { label: 'активна', tone: 'ok', glyph: 'ok' },
@@ -304,6 +304,8 @@ function setBusy(busy) {
   // Во время загрузки счётчики не должны читаться как «данных нет».
   if (busy) {
     document.querySelectorAll('.count').forEach((el) => {
+      // Счётчик мониторинга живёт своим запросом и своей загрузкой.
+      if (el.id === 'monitor-hosts-count') return;
       el.textContent = '—';
     });
   }
@@ -675,6 +677,410 @@ function renderAccounts(accounts, state) {
   scheduleTableOverflow();
 }
 
+/* ── мониторинг: обзор флота и таблица хостов ────────────────────────────── */
+/* Данные — только из /api/monitor/overview и /api/monitor/hosts (VictoriaMetrics).
+   null/undefined значит «метрики нет» и показывается как «—», а не как 0. */
+
+const MONITOR_REFRESH_MS = 60000;
+const MONITOR_PROBLEM_PCT = 90;
+const MONITOR_COLUMNS = 12;
+const MONITOR_ERROR_TITLE = 'Не удалось загрузить мониторинг';
+const MONITOR_VM_TITLE = 'VictoriaMetrics недоступна';
+
+const monitor = {
+  overview: null,
+  hosts: null,
+  loading: false,
+  error: '',
+  sort: null, // { key, dir: 'asc' | 'desc' }
+  provider: '',
+  role: '',
+  problemsOnly: false,
+  updatedAt: null, // время снимка от сервера; null, пока снимка не было
+  checkedAt: null, // когда последний раз спрашивали API (для offline-состояния)
+  loadedAt: 0,
+};
+
+function monitorNumber(value, digits) {
+  if (value == null || value === '') return '—';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatPercent(value) {
+  const text = monitorNumber(value, 1);
+  return text === '—' ? text : `${text} %`;
+}
+
+function formatMs(value) {
+  const text = monitorNumber(value, 1);
+  return text === '—' ? text : `${text} мс`;
+}
+
+function formatClock(value) {
+  const d = parseDate(value);
+  if (!d) return '—';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function formatUptime(seconds) {
+  if (seconds == null) return '—';
+  const total = Math.round(Number(seconds));
+  if (!Number.isFinite(total) || total < 0) return '—';
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (days > 0) return `${days} д ${hours} ч`;
+  if (hours > 0) return `${hours} ч ${minutes} мин`;
+  return `${minutes} мин`;
+}
+
+function monitorIsProblem(row) {
+  if (!row) return false;
+  if (row.icmpUp === false || row.nodeUp === false) return true;
+  return [row.cpu, row.ram, row.disk].some((v) => v != null && Number(v) >= MONITOR_PROBLEM_PCT);
+}
+
+function monitorValue(row, key) {
+  if (key === 'host') return row.host || '';
+  if (key === 'provider') return row.provider || '';
+  if (key === 'role') return row.role || '';
+  if (key === 'icmp') return row.icmpUp == null ? null : Number(row.icmpUp);
+  if (key === 'node') return row.nodeUp == null ? null : Number(row.nodeUp);
+  return row[key] == null ? null : Number(row[key]);
+}
+
+// По умолчанию проблемные хосты сверху, затем по имени. Явная сортировка
+// ставит выбранную колонку первой, а проблемность остаётся вторым ключом.
+function monitorCompare(a, b) {
+  const sort = monitor.sort;
+  const problemDelta = Number(monitorIsProblem(b)) - Number(monitorIsProblem(a));
+  let delta = 0;
+  if (sort) {
+    const av = monitorValue(a, sort.key);
+    const bv = monitorValue(b, sort.key);
+    if (av == null && bv != null) delta = 1;
+    else if (av != null && bv == null) delta = -1;
+    else if (av != null && bv != null) {
+      delta =
+        typeof av === 'number' && typeof bv === 'number'
+          ? av - bv
+          : String(av).localeCompare(String(bv), 'ru');
+      if (sort.dir === 'desc') delta = -delta;
+    }
+  }
+  return delta || problemDelta || String(a.host || '').localeCompare(String(b.host || ''), 'ru');
+}
+
+function monitorRows() {
+  return monitor.hosts && Array.isArray(monitor.hosts.hosts) ? monitor.hosts.hosts : [];
+}
+
+function monitorVisibleRows(rows) {
+  return rows
+    .filter((row) => {
+      if (!row) return false;
+      if (monitor.provider && row.provider !== monitor.provider) return false;
+      if (monitor.role && row.role !== monitor.role) return false;
+      if (monitor.problemsOnly && !monitorIsProblem(row)) return false;
+      return true;
+    })
+    .sort(monitorCompare);
+}
+
+function monitorFilterValues(rows, key) {
+  const seen = new Set();
+  for (const row of rows) {
+    const value = row && row[key];
+    if (!isBlank(value)) seen.add(String(value));
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+function fillMonitorFilter(id, values, allLabel, labelFor) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const current = el.value;
+  const options = values.map((value) => {
+    const label = labelFor ? labelFor(value) : value;
+    return `<option value="${esc(value)}">${esc(label)}</option>`;
+  });
+  el.innerHTML = `<option value="">${esc(allLabel)}</option>${options.join('')}`;
+  const next = values.includes(current) ? current : '';
+  el.value = next;
+  return next;
+}
+
+function monitorKpi(label, value, tone) {
+  return `<div><p class="kpi-label">${esc(label)}</p><p class="kpi-value${tone ? ' ' + tone : ''}">${value}</p></div>`;
+}
+
+function monitorCountTone(value, badTone) {
+  if (value == null) return '';
+  return Number(value) > 0 ? badTone : 'is-ok';
+}
+
+function monitorKpisHtml(overview) {
+  const counts = (overview && overview.hosts) || {};
+  const averages = (overview && overview.averages) || {};
+  const security = (overview && overview.security) || {};
+  const total = Number(counts.total || 0);
+  const up = Number(counts.up || 0);
+  const problems = Number(counts.down || 0) + Number(counts.nodeDown || 0);
+  return [
+    monitorKpi('Хосты up', `${up} / ${total}`, problems > 0 ? 'is-warn' : 'is-ok'),
+    monitorKpi('ICMP недоступны', monitorNumber(counts.icmpDown, 0), monitorCountTone(counts.icmpDown, 'is-danger')),
+    monitorKpi('node-exporter недоступен', monitorNumber(counts.nodeDown, 0), monitorCountTone(counts.nodeDown, 'is-danger')),
+    monitorKpi('Средний CPU', formatPercent(averages.cpu)),
+    monitorKpi('Средняя RAM', formatPercent(averages.ram)),
+    monitorKpi('Средний диск', formatPercent(averages.disk)),
+    monitorKpi('fail2ban забанено', monitorNumber(security.fail2banBanned, 0), monitorCountTone(security.fail2banBanned, 'is-warn')),
+    monitorKpi('UFW блокировок за 1ч', monitorNumber(security.ufwBlocks1h, 0), monitorCountTone(security.ufwBlocks1h, 'is-warn')),
+  ].join('');
+}
+
+function monitorKpiSkeletonHtml() {
+  return Array.from({ length: 8 }, () => '<div><span class="skeleton-block skeleton-block--row"></span></div>').join('');
+}
+
+function monitorRowsSkeletonHtml() {
+  return Array.from({ length: 5 }, () => `<tr role="row"><td role="cell" class="skeleton-cell" colspan="${MONITOR_COLUMNS}"><span class="skeleton-block skeleton-block--row"></span></td></tr>`).join('');
+}
+
+// Компактные up/down: 12 колонок на 1280 не терпят длинных подписей,
+// расшифровка — в title.
+function monitorStatusCell(up, okTitle, badTitle) {
+  if (up === true) return `<span class="badge badge--ok" title="${esc(okTitle)}">${inkGlyph('ok')}up</span>`;
+  if (up === false) return `<span class="badge badge--danger" title="${esc(badTitle)}">${inkGlyph('danger')}down</span>`;
+  return '<span class="dim">—</span>';
+}
+
+function monitorRowHtml(row) {
+  const problem = monitorIsProblem(row);
+  const host = esc(row.host);
+  const instance = row.instance ? `<span class="monitor-instance mono">${esc(row.instance)}</span>` : '';
+  // null-метрики на десктопе показывают «—», а в карточном режиме (<768)
+  // помечены data-empty и скрываются: «CPU —» на телефоне только шумит.
+  const empty = (is) => (is ? ' data-empty' : '');
+  return `<tr role="row"${problem ? ' class="is-fail"' : ''}>
+    <td role="cell" data-label="Хост" class="cell-name"><div class="name-cell"><span class="truncate" title="${host}">${host}</span>${instance}</div>${problem ? '<span class="badge badge--danger monitor-flag">проблема</span>' : ''}</td>
+    <td role="cell" data-label="Провайдер">${row.provider ? `<span class="truncate" title="${esc(providerLabel(row.provider))}">${esc(providerLabel(row.provider))}</span>` : '<span class="dim">—</span>'}</td>
+    <td role="cell" data-label="Роль">${row.role ? `<span class="truncate" title="${esc(row.role)}">${esc(row.role)}</span>` : '<span class="dim">—</span>'}</td>
+    <td role="cell" data-label="ICMP" class="cell-status"${empty(row.icmpUp == null)}>${monitorStatusCell(row.icmpUp, 'ICMP: хост отвечает', 'ICMP: хост не отвечает')}</td>
+    <td role="cell" data-label="RTT p50" class="num"${empty(row.rttP50Ms == null)}>${formatMs(row.rttP50Ms)}</td>
+    <td role="cell" data-label="RTT p95" class="num"${empty(row.rttP95Ms == null)}>${formatMs(row.rttP95Ms)}</td>
+    <td role="cell" data-label="node-exporter" class="cell-status"${empty(row.nodeUp == null)}>${monitorStatusCell(row.nodeUp, 'node-exporter отвечает', 'node-exporter не отвечает')}</td>
+    <td role="cell" data-label="CPU %" class="num"${empty(row.cpu == null)}>${formatPercent(row.cpu)}</td>
+    <td role="cell" data-label="RAM %" class="num"${empty(row.ram == null)}>${formatPercent(row.ram)}</td>
+    <td role="cell" data-label="Диск %" class="num"${empty(row.disk == null)}>${formatPercent(row.disk)}</td>
+    <td role="cell" data-label="load1" class="num"${empty(row.load1 == null)}>${monitorNumber(row.load1, 1)}</td>
+    <td role="cell" data-label="Аптайм" class="num"${empty(row.uptimeSec == null)}>${formatUptime(row.uptimeSec)}</td>
+  </tr>`;
+}
+
+function monitorRowsHtml(rows) {
+  if (rows.length) return rows.map(monitorRowHtml).join('');
+  const filtered = Boolean(monitor.provider || monitor.role || monitor.problemsOnly);
+  const html = filtered
+    ? emptyState(
+        'Ничего не найдено',
+        'Под выбранные фильтры хосты не попали.',
+        '<button class="btn btn--outline btn--sm" type="button" data-monitor-reset>Сбросить фильтры</button>',
+      )
+    : emptyState('Хостов нет', 'VictoriaMetrics отвечает, но метрик по хостам не найдено.');
+  return tableEmptyRow(MONITOR_COLUMNS, html);
+}
+
+function monitorMetaHtml() {
+  const checked = monitor.checkedAt ? formatClock(monitor.checkedAt) : '';
+  // Offline-снимок не имеет времени данных: не подставляем «сейчас», а честно
+  // говорим, что данные недоступны и когда их последний раз спрашивали.
+  if (monitorOffline()) {
+    return `<span class="dim">Данные недоступны${checked ? ` · проверено: ${checked}` : ''}</span>`;
+  }
+  if (!monitor.updatedAt) {
+    if (monitor.error) return `<span class="dim">Проверка не удалась${checked ? ` · ${checked}` : ''}</span>`;
+    return `<span class="dim">${monitor.loading ? 'Загрузка данных…' : 'Данные ещё не загружены'}</span>`;
+  }
+  const cached = monitor.hosts && monitor.hosts.cached ? ' <span class="badge badge--neutral">кэш 30 с</span>' : '';
+  return `Обновлено: ${formatDate(monitor.updatedAt)} ${formatClock(monitor.updatedAt)} · автообновление раз в 60\u00a0с${cached}`;
+}
+
+function monitorOffline() {
+  for (const payload of [monitor.overview, monitor.hosts]) {
+    if (payload && payload.available === false) return payload;
+  }
+  return null;
+}
+
+function syncMonitorSortHeaders() {
+  document.querySelectorAll('#monitor-hosts thead th[data-sort-key]').forEach((th) => {
+    const key = th.getAttribute('data-sort-key');
+    const active = monitor.sort && monitor.sort.key === key;
+    th.setAttribute('aria-sort', active ? (monitor.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+  });
+}
+
+function setMonitorBusy(busy) {
+  const btn = document.getElementById('monitor-refresh');
+  if (btn) {
+    btn.disabled = busy;
+    if (busy) btn.setAttribute('aria-busy', 'true');
+    else btn.removeAttribute('aria-busy');
+    const label = btn.querySelector('[data-refresh-label]');
+    if (label) label.textContent = busy ? 'Обновление…' : 'Обновить';
+  }
+  const table = document.getElementById('monitor-hosts');
+  if (table) {
+    if (busy) table.setAttribute('aria-busy', 'true');
+    else table.removeAttribute('aria-busy');
+  }
+}
+
+function renderMonitor() {
+  const view = document.getElementById('view-monitor');
+  if (!view) return;
+  const metaEl = document.getElementById('monitor-meta');
+  const kpiEl = document.getElementById('monitor-kpi');
+  const tbody = document.getElementById('monitor-hosts-body');
+  const countEl = document.getElementById('monitor-hosts-count');
+  const summary = document.getElementById('monitor-summary');
+  const tableCard = document.getElementById('monitor-table-card');
+  const banner = document.getElementById('monitor-banner');
+
+  if (metaEl) metaEl.innerHTML = monitorMetaHtml();
+
+  const offline = monitorOffline();
+  let bannerTitle = '';
+  let bannerText = '';
+  let warn = false;
+  if (monitor.error) {
+    bannerTitle = MONITOR_ERROR_TITLE;
+    bannerText = monitor.error;
+  } else if (offline) {
+    warn = true;
+    bannerTitle = MONITOR_VM_TITLE;
+    bannerText = offline.reason || 'Метрики недоступны: проверьте VICTORIAMETRICS_URL и доступность базы.';
+  }
+  const hasBanner = Boolean(bannerTitle);
+  if (banner) {
+    banner.hidden = !hasBanner;
+    banner.classList.toggle('app-error--warn', warn);
+    if (hasBanner) {
+      const titleEl = document.getElementById('monitor-banner-title');
+      const textEl = document.getElementById('monitor-banner-text');
+      const retry = document.getElementById('monitor-banner-retry');
+      if (titleEl) titleEl.textContent = bannerTitle;
+      if (textEl) textEl.textContent = bannerText;
+      if (retry) retry.textContent = warn ? 'Обновить' : 'Повторить';
+    }
+  }
+
+  // VM недоступна — только баннер, без пустой таблицы. Ошибка сети при уже
+  // загруженных данных оставляет прошлый снимок на экране.
+  const hasData = Boolean(monitor.overview && monitor.hosts);
+  const showCards = !offline && (!hasBanner || hasData);
+  if (summary) {
+    summary.hidden = !showCards;
+    if (monitor.loading) summary.setAttribute('aria-busy', 'true');
+    else summary.removeAttribute('aria-busy');
+  }
+  if (tableCard) tableCard.hidden = !showCards;
+  setMonitorBusy(monitor.loading);
+  if (!showCards) {
+    if (countEl) countEl.textContent = '—';
+    return;
+  }
+
+  const rows = monitorRows();
+  monitor.provider = fillMonitorFilter('monitor-provider', monitorFilterValues(rows, 'provider'), 'Все провайдеры', providerLabel);
+  monitor.role = fillMonitorFilter('monitor-role', monitorFilterValues(rows, 'role'), 'Все роли');
+  const visible = monitorVisibleRows(rows);
+  const problemsInput = document.getElementById('monitor-problems');
+  if (problemsInput) problemsInput.checked = monitor.problemsOnly;
+  const reset = document.getElementById('monitor-reset');
+  if (reset) reset.hidden = !(monitor.provider || monitor.role || monitor.problemsOnly);
+
+  const sortSelect = document.getElementById('monitor-sort');
+  if (sortSelect) sortSelect.value = monitor.sort ? monitor.sort.key : '';
+  if (kpiEl) kpiEl.innerHTML = monitor.overview ? monitorKpisHtml(monitor.overview) : monitorKpiSkeletonHtml();
+  if (countEl) {
+    countEl.textContent = !rows.length
+      ? '—'
+      : visible.length === rows.length
+        ? String(rows.length)
+        : `${visible.length} из ${rows.length}`;
+  }
+  if (tbody) tbody.innerHTML = monitor.hosts ? monitorRowsHtml(visible) : monitorRowsSkeletonHtml();
+  syncMonitorSortHeaders();
+  syncTableOverflow();
+}
+
+async function loadMonitor() {
+  if (monitor.loading) return;
+  monitor.loading = true;
+  monitor.error = '';
+  renderMonitor();
+  try {
+    const [overview, hosts] = await Promise.all([api('/monitor/overview'), api('/monitor/hosts')]);
+    monitor.overview = overview && typeof overview === 'object' ? overview : null;
+    monitor.hosts = hosts && typeof hosts === 'object' ? hosts : null;
+    // Только серверное время снимка: при available:false updatedAt = null.
+    monitor.updatedAt =
+      (monitor.hosts && monitor.hosts.updatedAt) || (monitor.overview && monitor.overview.updatedAt) || null;
+    monitor.checkedAt = new Date().toISOString();
+    monitor.loadedAt = Date.now();
+    announce('Мониторинг обновлён');
+  } catch (err) {
+    if (err && err.message === 'unauthorized') return;
+    monitor.error = humanError(err) || 'Не удалось загрузить данные мониторинга';
+    monitor.checkedAt = new Date().toISOString();
+    announce('Не удалось обновить мониторинг');
+  } finally {
+    monitor.loading = false;
+    setMonitorBusy(false);
+    renderMonitor();
+  }
+}
+
+function ensureMonitor() {
+  renderMonitor();
+  if (monitor.loading) return;
+  // Заход в вид после паузы обновляет снимок: автообновление работает только
+  // пока вкладка «Мониторинг» открыта.
+  const stale = !monitor.overview || !monitor.hosts || Date.now() - monitor.loadedAt >= MONITOR_REFRESH_MS;
+  if (!stale) return;
+  loadMonitor();
+}
+
+function toggleMonitorSort(key) {
+  if (!key) return;
+  if (!monitor.sort || monitor.sort.key !== key) monitor.sort = { key, dir: 'asc' };
+  else if (monitor.sort.dir === 'asc') monitor.sort = { key, dir: 'desc' };
+  else monitor.sort = null;
+  renderMonitor();
+}
+
+function resetMonitorFilters() {
+  monitor.provider = '';
+  monitor.role = '';
+  monitor.problemsOnly = false;
+  const providerSel = document.getElementById('monitor-provider');
+  const roleSel = document.getElementById('monitor-role');
+  const problems = document.getElementById('monitor-problems');
+  if (providerSel) providerSel.value = '';
+  if (roleSel) roleSel.value = '';
+  if (problems) problems.checked = false;
+  renderMonitor();
+}
+
+function monitorAutoRefresh() {
+  if (document.hidden) return;
+  if (parseHash().view !== 'monitor') return;
+  loadMonitor();
+}
+
 function renderSidebar(d) {
   if (!d) return;
   const counts = { ok: 0, failed: 0, never: 0, off: 0 };
@@ -727,6 +1133,9 @@ function fillProviders(list) {
     if (value) filter.value = value;
   }
   updateHint();
+  // Снимок мониторинга мог прийти раньше /api/meta: подписи провайдеров в
+  // таблице и в фильтре перерисовываем, как только providerMap обновился.
+  if (monitor.overview || monitor.hosts) renderMonitor();
 }
 
 function updateHint() {
@@ -859,6 +1268,7 @@ function applyRoute() {
     else a.removeAttribute('aria-current');
   });
   if (route.view === 'providers' && dashboard) renderAccounts(dashboard.accounts, route.state);
+  if (route.view === 'monitor') ensureMonitor();
   syncTableOverflow();
 }
 
@@ -1212,6 +1622,53 @@ function init() {
     });
   }
 
+  const monitorRefresh = document.getElementById('monitor-refresh');
+  if (monitorRefresh) monitorRefresh.addEventListener('click', () => loadMonitor());
+  const monitorBannerRetry = document.getElementById('monitor-banner-retry');
+  if (monitorBannerRetry) monitorBannerRetry.addEventListener('click', () => loadMonitor());
+  const monitorProvider = document.getElementById('monitor-provider');
+  if (monitorProvider) {
+    monitorProvider.addEventListener('change', () => {
+      monitor.provider = monitorProvider.value;
+      renderMonitor();
+    });
+  }
+  const monitorRole = document.getElementById('monitor-role');
+  if (monitorRole) {
+    monitorRole.addEventListener('change', () => {
+      monitor.role = monitorRole.value;
+      renderMonitor();
+    });
+  }
+  const monitorSort = document.getElementById('monitor-sort');
+  if (monitorSort) {
+    // Доступная замена скрытым в карточном режиме кнопкам сортировки.
+    monitorSort.addEventListener('change', () => {
+      monitor.sort = monitorSort.value ? { key: monitorSort.value, dir: 'asc' } : null;
+      renderMonitor();
+    });
+  }
+  const monitorProblems = document.getElementById('monitor-problems');
+  if (monitorProblems) {
+    monitorProblems.addEventListener('change', () => {
+      monitor.problemsOnly = monitorProblems.checked;
+      renderMonitor();
+    });
+  }
+  const monitorResetBtn = document.getElementById('monitor-reset');
+  if (monitorResetBtn) monitorResetBtn.addEventListener('click', resetMonitorFilters);
+  const monitorTable = document.getElementById('monitor-hosts');
+  if (monitorTable) {
+    monitorTable.addEventListener('click', (event) => {
+      const sortBtn = event.target.closest('[data-sort]');
+      if (sortBtn) {
+        toggleMonitorSort(sortBtn.getAttribute('data-sort'));
+        return;
+      }
+      if (event.target.closest('[data-monitor-reset]')) resetMonitorFilters();
+    });
+  }
+
   const editForm = document.getElementById('edit-form');
   if (editForm) editForm.addEventListener('submit', saveEdit);
   const confirmOk = document.getElementById('confirm-ok');
@@ -1263,6 +1720,16 @@ function init() {
   watchTableOverflow();
 
   window.addEventListener('hashchange', applyRoute);
+
+  // Мониторинг: автообновление раз в 60 с с паузой при скрытой вкладке.
+  window.setInterval(monitorAutoRefresh, MONITOR_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (parseHash().view !== 'monitor') return;
+    if (Date.now() - monitor.loadedAt < MONITOR_REFRESH_MS) return;
+    loadMonitor();
+  });
+
   applyRoute();
   load();
 }

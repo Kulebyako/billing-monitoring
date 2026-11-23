@@ -12,6 +12,7 @@ import {
   section,
   tracksBalance,
 } from './tg-format.js';
+import { hostQueries, PROMQL } from './monitor-queries.js';
 import {
   byHost,
   fmtMs,
@@ -68,22 +69,6 @@ function billingSnapshot(): {
   };
 }
 
-const Q = {
-  probe: 'probe_success{job="blackbox-icmp"}',
-  rtt: 'probe_icmp_duration_seconds{job="blackbox-icmp",phase="rtt"}',
-  rttP50: 'quantile(0.5, probe_icmp_duration_seconds{job="blackbox-icmp",phase="rtt"})',
-  rttP95: 'quantile(0.95, probe_icmp_duration_seconds{job="blackbox-icmp",phase="rtt"})',
-  nodeUp: 'up{job=~"node.*"}',
-  cpu: '100 - (avg by(host) (rate(node_cpu_seconds_total{mode="idle",job=~"node.*"}[5m])) * 100)',
-  ram: '(1 - (node_memory_MemAvailable_bytes{job=~"node.*"} / node_memory_MemTotal_bytes{job=~"node.*"})) * 100',
-  disk: '(1 - (node_filesystem_avail_bytes{job=~"node.*",mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{job=~"node.*",mountpoint="/",fstype!~"tmpfs|overlay"})) * 100',
-  load: 'node_load1{job=~"node.*"}',
-  boot: 'node_boot_time_seconds{job=~"node.*"}',
-  banned: 'node_security_fail2ban_banned',
-  ufwBlocks: 'node_security_ufw_blocks_1h',
-  ufwOn: 'node_security_ufw_enabled',
-};
-
 async function requireVm() {
   if (!config.victoriaMetricsUrl) {
     throw new Error('VICTORIAMETRICS_URL не задан');
@@ -125,14 +110,14 @@ export async function formatHourlySummary(): Promise<string> {
 async function formatFleetReport(opts: { title: string; hourly: boolean }): Promise<string> {
   await requireVm();
   const [probeData, nodeData, rttP50, rttP95, cpu, ram, disk, blocks] = await Promise.all([
-    queryVm(Q.probe),
-    queryVm(Q.nodeUp),
-    queryVm(Q.rttP50),
-    queryVm(Q.rttP95),
-    queryVm(Q.cpu),
-    queryVm(Q.ram),
-    queryVm(Q.disk),
-    queryVm(Q.ufwBlocks),
+    queryVm(PROMQL.probe),
+    queryVm(PROMQL.nodeUp),
+    queryVm(PROMQL.rttP50),
+    queryVm(PROMQL.rttP95),
+    queryVm(PROMQL.cpu),
+    queryVm(PROMQL.ram),
+    queryVm(PROMQL.disk),
+    queryVm(PROMQL.ufwBlocks),
   ]);
 
   const probes = probeData?.result ?? [];
@@ -231,7 +216,7 @@ async function formatFleetReport(opts: { title: string; hourly: boolean }): Prom
 
 export async function formatDown(): Promise<string> {
   await requireVm();
-  const [probeData, nodeData] = await Promise.all([queryVm(Q.probe), queryVm(Q.nodeUp)]);
+  const [probeData, nodeData] = await Promise.all([queryVm(PROMQL.probe), queryVm(PROMQL.nodeUp)]);
 
   const icmpDown = (probeData?.result ?? []).filter((s) => sampleNum(s) === 0);
   const nodeDown = (nodeData?.result ?? []).filter((s) => sampleNum(s) === 0);
@@ -266,6 +251,7 @@ export async function formatHost(name: string): Promise<string> {
   if (!host) return `Укажите хост: ${code('/host NAME')}`;
 
   const esc = host.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const hq = hostQueries(esc);
   const [
     probeData,
     rttData,
@@ -278,22 +264,16 @@ export async function formatHost(name: string): Promise<string> {
     bannedData,
     blocksData,
   ] = await Promise.all([
-    queryVm(`probe_success{job="blackbox-icmp",host="${esc}"}`),
-    queryVm(`probe_icmp_duration_seconds{job="blackbox-icmp",phase="rtt",host="${esc}"}`),
-    queryVm(`up{job=~"node.*",host="${esc}"}`),
-    queryVm(
-      `100 - (avg by(host) (rate(node_cpu_seconds_total{mode="idle",job=~"node.*",host="${esc}"}[5m])) * 100)`,
-    ),
-    queryVm(
-      `(1 - (node_memory_MemAvailable_bytes{job=~"node.*",host="${esc}"} / node_memory_MemTotal_bytes{job=~"node.*",host="${esc}"})) * 100`,
-    ),
-    queryVm(
-      `(1 - (node_filesystem_avail_bytes{job=~"node.*",host="${esc}",mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{job=~"node.*",host="${esc}",mountpoint="/",fstype!~"tmpfs|overlay"})) * 100`,
-    ),
-    queryVm(`node_load1{job=~"node.*",host="${esc}"}`),
-    queryVm(`node_boot_time_seconds{job=~"node.*",host="${esc}"}`),
-    queryVm(`node_security_fail2ban_banned{host="${esc}"}`),
-    queryVm(`node_security_ufw_blocks_1h{host="${esc}"}`),
+    queryVm(hq.probe),
+    queryVm(hq.rtt),
+    queryVm(hq.nodeUp),
+    queryVm(hq.cpu),
+    queryVm(hq.ram),
+    queryVm(hq.disk),
+    queryVm(hq.load),
+    queryVm(hq.boot),
+    queryVm(hq.banned),
+    queryVm(hq.ufwBlocks),
   ]);
 
   const probe = probeData?.result?.[0];
@@ -333,10 +313,10 @@ export async function formatHost(name: string): Promise<string> {
 export async function formatTop(): Promise<string> {
   await requireVm();
   const [cpu, ram, disk, rtt] = await Promise.all([
-    queryVm(Q.cpu),
-    queryVm(Q.ram),
-    queryVm(Q.disk),
-    queryVm(Q.rtt),
+    queryVm(PROMQL.cpu),
+    queryVm(PROMQL.ram),
+    queryVm(PROMQL.disk),
+    queryVm(PROMQL.rtt),
   ]);
 
   const blocks: string[] = [b('Топ нагрузки'), i(`${nowMoscow()} MSK`)];
@@ -365,9 +345,9 @@ export async function formatTop(): Promise<string> {
 export async function formatSec(): Promise<string> {
   await requireVm();
   const [banned, blocks, ufwOn] = await Promise.all([
-    queryVm(Q.banned),
-    queryVm(Q.ufwBlocks),
-    queryVm(Q.ufwOn),
+    queryVm(PROMQL.banned),
+    queryVm(PROMQL.ufwBlocks),
+    queryVm(PROMQL.ufwOn),
   ]);
 
   const bannedMap = byHost(banned);

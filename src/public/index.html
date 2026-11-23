@@ -44,6 +44,10 @@
           <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 7.2-7.2M15.5 4.5l3 3M13 7l3 3"/></svg>
           <span>Провайдеры</span>
         </a>
+        <a class="nav-item" href="#/monitor" data-view="monitor">
+          <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17.5 8.5 11l3.8 3 3.2-4.2L21 16"/><path d="M3 21h18"/></svg>
+          <span>Мониторинг</span>
+        </a>
       </div>
 
       <div class="nav-group" role="group" aria-labelledby="nav-sync-label">
@@ -261,6 +265,105 @@
             </div>
           </div>
         </form>
+      </div>
+
+      <div class="view" id="view-monitor" data-view-panel="monitor" hidden>
+        <h1 class="sr-only">Мониторинг</h1>
+
+        <div class="monitor-bar">
+          <p class="monitor-meta" id="monitor-meta"><span class="dim">Данные ещё не загружены</span></p>
+          <button class="btn btn--outline btn--sm" id="monitor-refresh" type="button" aria-label="Обновить данные мониторинга">
+            <span aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4M4 5v6h6M4 13a8 8 0 0 0 14.6 4M20 19v-6h-6"/></svg></span>
+            <span data-refresh-label>Обновить</span>
+          </button>
+        </div>
+
+        <div class="app-error" id="monitor-banner" role="alert" hidden>
+          <span class="app-error__icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
+          <div>
+            <p class="app-error__title" id="monitor-banner-title"></p>
+            <p class="app-error__text" id="monitor-banner-text"></p>
+          </div>
+          <button class="app-error__retry" id="monitor-banner-retry" type="button">Повторить</button>
+        </div>
+
+        <section class="card summary" id="monitor-summary" aria-label="Сводка мониторинга" aria-busy="true">
+          <div class="kpi monitor-kpi" id="monitor-kpi">
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+            <div><span class="skeleton-block skeleton-block--row"></span></div>
+          </div>
+        </section>
+
+        <section class="card table-card" id="monitor-table-card" aria-labelledby="monitor-hosts-title">
+          <div class="card-head">
+            <h2 id="monitor-hosts-title">Хосты <span class="count" id="monitor-hosts-count">—</span></h2>
+            <div class="toolbar">
+              <label class="check" title="Проблемные: ICMP или node-exporter не отвечают, CPU/RAM/диск ≥ 90 %">
+                <input type="checkbox" id="monitor-problems" />
+                <span>Только проблемные</span>
+              </label>
+              <select id="monitor-sort" class="monitor-sort" aria-label="Сортировка хостов">
+                <option value="">Сортировка: по умолчанию</option>
+                <option value="host">Хост: А→Я</option>
+                <option value="provider">Провайдер: А→Я</option>
+                <option value="role">Роль: А→Я</option>
+                <option value="icmp">ICMP: 0→1</option>
+                <option value="rttP50Ms">RTT p50 ↑</option>
+                <option value="rttP95Ms">RTT p95 ↑</option>
+                <option value="node">node: 0→1</option>
+                <option value="cpu">CPU ↑</option>
+                <option value="ram">RAM ↑</option>
+                <option value="disk">Диск ↑</option>
+                <option value="load1">load1 ↑</option>
+                <option value="uptimeSec">Аптайм ↑</option>
+              </select>
+              <select id="monitor-provider" aria-label="Фильтр по провайдеру">
+                <option value="">Все провайдеры</option>
+              </select>
+              <select id="monitor-role" aria-label="Фильтр по роли">
+                <option value="">Все роли</option>
+              </select>
+              <button class="btn btn--ghost btn--sm" id="monitor-reset" type="button" hidden>Сбросить</button>
+            </div>
+          </div>
+          <div class="table-shell">
+            <div class="table-wrap">
+              <table class="monitor-table" id="monitor-hosts" role="table" aria-busy="true">
+                <caption class="sr-only">Хосты: доступность, RTT, ресурсы и безопасность</caption>
+                <thead>
+                  <tr role="row">
+                    <th scope="col" role="columnheader" data-sort-key="host" aria-sort="none"><button class="th-sort" type="button" data-sort="host">Хост</button></th>
+                    <th scope="col" role="columnheader" data-sort-key="provider" aria-sort="none"><button class="th-sort" type="button" data-sort="provider">Провайдер</button></th>
+                    <th scope="col" role="columnheader" data-sort-key="role" aria-sort="none"><button class="th-sort" type="button" data-sort="role">Роль</button></th>
+                    <th scope="col" role="columnheader" data-sort-key="icmp" aria-sort="none"><button class="th-sort" type="button" data-sort="icmp">ICMP</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="rttP50Ms" aria-sort="none"><button class="th-sort" type="button" data-sort="rttP50Ms">RTT p50</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="rttP95Ms" aria-sort="none"><button class="th-sort" type="button" data-sort="rttP95Ms">RTT p95</button></th>
+                    <th scope="col" role="columnheader" data-sort-key="node" aria-sort="none"><button class="th-sort" type="button" data-sort="node">node-exporter</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="cpu" aria-sort="none"><button class="th-sort" type="button" data-sort="cpu">CPU %</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="ram" aria-sort="none"><button class="th-sort" type="button" data-sort="ram">RAM %</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="disk" aria-sort="none"><button class="th-sort" type="button" data-sort="disk">Диск %</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="load1" aria-sort="none"><button class="th-sort" type="button" data-sort="load1">load1</button></th>
+                    <th scope="col" role="columnheader" class="num" data-sort-key="uptimeSec" aria-sort="none"><button class="th-sort" type="button" data-sort="uptimeSec">Аптайм</button></th>
+                  </tr>
+                </thead>
+                <tbody id="monitor-hosts-body">
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                  <tr role="row"><td role="cell" class="skeleton-cell" colspan="12"><span class="skeleton-block skeleton-block--row"></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>

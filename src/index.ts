@@ -5,6 +5,7 @@ import cron from 'node-cron';
 import { assertRuntimeConfig, config, ROOT_DIR } from './config.js';
 import { initDb } from './db.js';
 import { apiRouter } from './routes/api.js';
+import { monitorRouter } from './routes/monitor.js';
 import { requireAuth, isValidSession, COOKIE } from './auth.js';
 import { syncAll } from './sync.js';
 import { runReminders, startTelegramPolling } from './reminders.js';
@@ -32,6 +33,21 @@ app.get('/login', (req, res) => {
   }
   res.sendFile(path.join(publicDir, 'login.html'));
 });
+
+// Monitoring API is mounted before the generic `/api` guard: inside a mounted
+// middleware Express strips the prefix from req.path, so requireAuth() would
+// redirect instead of answering 401 JSON. Keep an explicit JSON 401 here.
+app.use(
+  '/api/monitor',
+  (req, res, next) => {
+    if (!isValidSession(req.cookies?.[COOKIE])) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    next();
+  },
+  monitorRouter,
+);
 
 app.use('/api', (req, res, next) => {
   if (req.path === '/login') return next();

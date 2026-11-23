@@ -19,7 +19,10 @@ if node --check "$PUBLIC/app.js"; then pass "node --check src/public/app.js"; el
 for id in summary services accounts add-account filter-provider filter-tag provider-select provider-hint \
   edit-dlg edit-form edit-save btn-sync btn-logout view-overview view-services view-providers nav sync-status \
   paid-meter header breadcrumb drawer-btn confirm-dlg confirm-ok confirm-cancel toast app-error chart-weekly \
-  attention skeleton main; do
+  attention skeleton main \
+  view-monitor monitor-summary monitor-kpi monitor-meta monitor-refresh monitor-banner monitor-banner-title \
+  monitor-banner-text monitor-banner-retry monitor-table-card monitor-hosts monitor-hosts-body monitor-hosts-count \
+  monitor-problems monitor-provider monitor-role monitor-reset monitor-sort; do
   if grep -q "id=\"$id\"" "$PUBLIC/index.html"; then pass "id #$id"; else fail "id #$id отсутствует в index.html"; fi
 done
 
@@ -132,7 +135,7 @@ color_offenders=$(awk '
 if [ -n "$color_offenders" ]; then fail "цветовые литералы вне :root: $color_offenders"; else pass "цвета только через var(--…)"; fi
 
 css_lines=$(wc -l < "$PUBLIC/style.css")
-if [ "$css_lines" -ge 600 ] && [ "$css_lines" -le 900 ]; then pass "style.css: $css_lines строк (600–900)"; else fail "style.css: $css_lines строк, нужно 600–900"; fi
+if [ "$css_lines" -ge 600 ] && [ "$css_lines" -le 1000 ]; then pass "style.css: $css_lines строк (600–1000)"; else fail "style.css: $css_lines строк, нужно 600–1000"; fi
 login_lines=$(wc -l < "$PUBLIC/login.html")
 if [ "$login_lines" -le 90 ]; then pass "login.html: $login_lines строк (≤90)"; else fail "login.html: $login_lines строк, нужно ≤90"; fi
 
@@ -166,6 +169,123 @@ if grep -q 'data-scrollable="true"' "$PUBLIC/style.css" &&
   pass "подсказка горизонтального скролла: data-scrollable по фактическому overflow, любая ширина ≥768"
 else
   fail "подсказка горизонтального скролла не привязана к фактическому overflow"
+fi
+
+section "статика: вид «Мониторинг»"
+if grep -q 'href="#/monitor" data-view="monitor"' "$PUBLIC/index.html" &&
+  grep -q '<span>Мониторинг</span>' "$PUBLIC/index.html"; then
+  pass "пункт сайдбара «Мониторинг» → #/monitor"
+else
+  fail "нет пункта сайдбара «Мониторинг» (#/monitor)"
+fi
+
+if grep -q "api('/monitor/overview')" "$PUBLIC/app.js" && grep -q "api('/monitor/hosts')" "$PUBLIC/app.js"; then
+  pass "данные только из /api/monitor/overview и /api/monitor/hosts"
+else
+  fail "вид не ходит в /api/monitor/*"
+fi
+if grep -qE '203\.0\.113|198\.51\.100|monitor-host-1' "$PUBLIC"/app.js "$PUBLIC"/index.html; then
+  fail "в вёрстке остались хардкод-значения хостов"
+else
+  pass "нет хардкод-значений хостов (тестовая RFC 5737 подсеть отсутствует)"
+fi
+if grep -q 'data-label="Хост"' "$PUBLIC/index.html"; then
+  fail "строки хостов захардкожены в index.html"
+else
+  pass "таблица хостов строится только из ответа API"
+fi
+
+if grep -q 'const MONITOR_REFRESH_MS = 60000' "$PUBLIC/app.js" &&
+  grep -q 'setInterval(monitorAutoRefresh, MONITOR_REFRESH_MS)' "$PUBLIC/app.js" &&
+  grep -q 'if (document.hidden) return' "$PUBLIC/app.js"; then
+  pass "автообновление мониторинга раз в 60 с с паузой при скрытой вкладке"
+else
+  fail "автообновление мониторинга не 60 с или без паузы при document.hidden"
+fi
+
+if grep -q 'aria-sort="none"' "$PUBLIC/index.html" &&
+  grep -q 'data-sort-key=' "$PUBLIC/index.html" &&
+  grep -q 'th\[aria-sort="descending"\]' "$PUBLIC/style.css" &&
+  grep -q "setAttribute('aria-sort'" "$PUBLIC/app.js"; then
+  pass "сортировка: th[aria-sort], кнопки .th-sort и индикатор направления"
+else
+  fail "сортировка без aria-sort/кнопок"
+fi
+
+if grep -q 'th-sort:focus-visible' "$PUBLIC/style.css" &&
+  grep -q '^:focus-visible { outline: 2px solid var(--ring)' "$PUBLIC/style.css"; then
+  pass "фокус-ринги: глобальный :focus-visible и .th-sort:focus-visible"
+else
+  fail "нет фокус-рингов у сортировки"
+fi
+
+if grep -q 'available === false' "$PUBLIC/app.js" &&
+  grep -q 'VictoriaMetrics недоступна' "$PUBLIC/app.js" &&
+  grep -q 'app-error--warn' "$PUBLIC/style.css"; then
+  pass "состояние «VM недоступна»: отдельный баннер с причиной"
+else
+  fail "нет отдельного состояния available:false"
+fi
+
+missing_labels=""
+for label in "Хост" "Провайдер" "Роль" "ICMP" "RTT p50" "RTT p95" "node-exporter" "CPU %" "RAM %" "Диск %" "load1" "Аптайм"; do
+  if ! grep -q "data-label=\"$label\"" "$PUBLIC/app.js"; then missing_labels="$missing_labels $label"; fi
+done
+if [ -n "$missing_labels" ]; then
+  fail "нет data-label у колонок:$missing_labels"
+else
+  pass "12 колонок размечены data-label для карточного режима 360"
+fi
+
+# провайдеры подписываются из /api/meta и перерисовываются, когда meta пришла позже снимка
+if grep -q 'if (monitor.overview || monitor.hosts) renderMonitor();' "$PUBLIC/app.js"; then
+  pass "провайдеры мониторинга перерисовываются после обновления providerMap"
+else
+  fail "нет перерисовки мониторинга после /api/meta (providerMap)"
+fi
+
+# карточный режим: компактные бейджи и скрытые null-ячейки
+if grep -q 'td.cell-status .badge { justify-self: start; }' "$PUBLIC/style.css"; then
+  pass "статус-бейджи в карточном режиме не растягиваются (justify-self: start)"
+else
+  fail "нет justify-self: start у статус-бейджей в карточном режиме"
+fi
+if grep -q 'data-empty' "$PUBLIC/app.js" && grep -q 'td\[data-empty\] { display: none; }' "$PUBLIC/style.css"; then
+  pass "null-ячейки помечены data-empty и скрыты в карточном режиме"
+else
+  fail "null-ячейки не помечены data-empty"
+fi
+
+# сортировка на телефоне: скрытые кнопки thead вне tab-порядка + select «Сортировка»
+if grep -q '.monitor-table thead { display: none; }' "$PUBLIC/style.css" &&
+  grep -q 'monitor-sort' "$PUBLIC/app.js"; then
+  pass "в карточном режиме thead выключен из tab-порядка, сортировка через select"
+else
+  fail "скрытые sort-кнопки остаются в tab-порядке или нет select «Сортировка»"
+fi
+if node - "$PUBLIC/index.html" <<'NODE'
+const fs = require('fs');
+const html = fs.readFileSync(process.argv[2], 'utf8');
+const block = html.match(/<select id="monitor-sort"[\s\S]*?<\/select>/);
+if (!block) process.exit(1);
+const values = [...block[0].matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
+const keys = values.filter(Boolean);
+const expected = ['host', 'provider', 'role', 'icmp', 'rttP50Ms', 'rttP95Ms', 'node', 'cpu', 'ram', 'disk', 'load1', 'uptimeSec'];
+process.exit(values.length === 13 && keys.length === 12 && expected.every((key) => keys.includes(key)) ? 0 : 1);
+NODE
+then
+  pass "select «Сортировка»: 12 колонок + сброс"
+else
+  fail "select «Сортировка»: ожидались 12 колонок и сброс"
+fi
+
+# offline-состояние не подставляет текущее время вместо времени снимка
+if grep -q 'Данные недоступны' "$PUBLIC/app.js" &&
+  grep -q 'monitor.checkedAt' "$PUBLIC/app.js" &&
+  ! grep -q '|| new Date().toISOString()' "$PUBLIC/app.js"; then
+  pass "available:false показывает «Данные недоступны · проверено: HH:MM:SS» без подставленного времени"
+else
+  fail "offline-мета подставляет время или нет сообщения «Данные недоступны»"
 fi
 
 if [ "${SMOKE_STATIC_ONLY:-0}" = "1" ]; then
@@ -305,11 +425,37 @@ NODE
       fail "POST /api/accounts → $code"
     fi
 
+    code=$(curl -s -o "$TMP/monitor-anon.json" -w '%{http_code}' "$BASE/api/monitor/overview")
+    [ "$code" = "401" ] && pass "GET /api/monitor/overview без сессии → 401" || fail "GET /api/monitor/overview без сессии → $code"
+    code=$(curl -s -b "$TMP/cookies" -o "$TMP/monitor.json" -w '%{http_code}' "$BASE/api/monitor/overview")
+    if [ "$code" = "200" ] && node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.exit(d.available===false&&typeof d.reason==="string"&&d.reason.length>0?0:1)' "$TMP/monitor.json"; then
+      pass "GET /api/monitor/overview без VM → 200 { available:false, reason }"
+    else
+      fail "GET /api/monitor/overview без VM → $code"
+    fi
+    code=$(curl -s -b "$TMP/cookies" -o "$TMP/monitor-hosts.json" -w '%{http_code}' "$BASE/api/monitor/hosts")
+    if [ "$code" = "200" ] && node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.exit(d.available===false&&Array.isArray(d.hosts)&&d.hosts.length===0?0:1)' "$TMP/monitor-hosts.json"; then
+      pass "GET /api/monitor/hosts без VM → 200 { available:false, hosts:[] }"
+    else
+      fail "GET /api/monitor/hosts без VM → $code"
+    fi
+
     code=$(curl -s -b "$TMP/cookies" -o /dev/null -w '%{http_code}' -X POST "$BASE/api/logout")
     [ "$code" = "200" ] && pass "выход → 200" || fail "выход → $code"
     code=$(curl -s -b "$TMP/cookies" -o /dev/null -w '%{http_code}' "$BASE/")
     [ "$code" = "302" ] && pass "после выхода / → 302" || fail "после выхода / → $code"
   fi
+fi
+
+section "runtime: UI вида «Мониторинг» (Playwright)"
+if [ ! -d node_modules/playwright ]; then
+  fail "playwright не установлен: выполните npm ci --include=dev"
+elif [ ! -d node_modules/.bin ]; then
+  fail "node_modules/.bin не найден: выполните npm ci --include=dev"
+elif node scripts/monitor-ui-smoke.mjs; then
+  pass "вид «Мониторинг»: KPI, сортировка, фильтры, состояния, адаптив, 401, без внешних запросов"
+else
+  fail "monitor-ui-smoke.mjs: вид «Мониторинг» не прошёл проверки"
 fi
 
 section "итог"

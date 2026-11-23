@@ -877,3 +877,89 @@ dialog[open] { animation: dialog-in var(--dur) var(--ease); }
 .row-actions { display: inline-flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 .skeleton-cell { padding: var(--s-2) var(--s-4); }
 body.drawer-open { overflow: hidden; }
+
+/* ── мониторинг: обзор флота и таблица хостов ───────────────────────────── */
+.monitor-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.monitor-meta { font-size: var(--fs-13); line-height: var(--lh-13); color: var(--text-muted); }
+.monitor-meta .badge { margin-left: var(--s-2); }
+.monitor-kpi { margin-top: 0; padding-top: 0; border-top: 0; }
+.monitor-kpi .kpi-label { min-height: calc(var(--lh-13) * 2); }
+/* .summary задаёт display:grid и перебивает глобальный [hidden] — возвращаем скрытие карточкам */
+.card[hidden] { display: none; }
+
+/* переключатель «только проблемные»: пилюля в тон индиго, чекбокс остаётся нативным */
+.check {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: 36px; padding: 0 var(--s-3);
+  border: 1px solid transparent; border-radius: var(--r-full);
+  background: var(--surface-3); color: var(--text-muted);
+  font-size: var(--fs-13); cursor: pointer;
+}
+.check input[type="checkbox"] { width: 16px; height: 16px; margin: 0; padding: 0; flex: 0 0 auto; border: 0; background: transparent; accent-color: var(--accent); }
+.check:has(input:checked) { background: var(--accent-soft); color: var(--text); }
+.check:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-soft); }
+/* Селект «Сортировка» — только для карточного режима, где th со своими кнопками скрыт. */
+.monitor-sort { display: none; }
+/* В карточном режиме td — grid: бейдж статуса не должен растягиваться на всю колонку.
+   Размер оставляем штатный (по контенту, ~46px для up) — как в таблице на десктопе. */
+.monitor-table td.cell-status .badge { justify-self: start; }
+
+/* сортировка: кнопка в th с треугольником направления; aria-sort ставит app.js */
+.monitor-table { min-width: 900px; }
+.monitor-table th { position: relative; height: auto; min-height: 40px; padding-block: var(--s-2); white-space: normal; line-height: var(--lh-12); }
+.th-sort {
+  display: inline-block;
+  width: 100%; padding: 0 10px 0 0;
+  border: 0; background: none; color: inherit; font: inherit;
+  text-align: inherit; white-space: normal; cursor: pointer;
+}
+/* треугольник прижат к правому краю ячейки и не переносится вместе с текстом */
+.th-sort::after {
+  content: "";
+  position: absolute;
+  right: 3px; top: calc(50% - 2.5px);
+  width: 0; height: 0;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-bottom: 5px solid currentColor;
+  opacity: 0.25;
+}
+th[aria-sort="ascending"] .th-sort::after, th[aria-sort="descending"] .th-sort::after { opacity: 0.9; }
+th[aria-sort="descending"] .th-sort::after { transform: rotate(180deg); }
+.th-sort:focus-visible { outline-offset: 2px; border-radius: var(--r-sm); }
+
+.monitor-table .cell-name { min-width: 140px; }
+.monitor-instance { display: block; margin-top: 2px; color: var(--text-dim); font-size: var(--fs-12); }
+.monitor-flag { margin-top: 2px; }
+
+/* баннер «VM недоступна» — предупреждающий тон того же компонента ошибки */
+.app-error--warn { background: var(--warn-bg); }
+.app-error--warn .app-error__icon, .app-error--warn .app-error__retry { color: var(--warn); }
+
+/* 1280/1600: 12 колонок делят ширину контента, скроллится максимум .table-wrap */
+@media (min-width: 1280px) {
+  .monitor-table { table-layout: fixed; }
+  .monitor-table th:nth-child(1) { width: 12%; }
+  .monitor-table th:nth-child(2) { width: 10%; }
+  .monitor-table th:nth-child(3) { width: 7%; }
+  .monitor-table th:nth-child(4) { width: 7%; }
+  .monitor-table th:nth-child(5) { width: 8%; }
+  .monitor-table th:nth-child(6) { width: 8%; }
+  .monitor-table th:nth-child(7) { width: 9%; }
+  .monitor-table th:nth-child(8) { width: 7%; }
+  .monitor-table th:nth-child(9) { width: 7%; }
+  .monitor-table th:nth-child(10) { width: 8%; }
+  .monitor-table th:nth-child(11) { width: 7%; }
+  .monitor-table th:nth-child(12) { width: 10%; }
+  .monitor-table th, .monitor-table td { padding-inline: 6px; }
+  .monitor-table th:first-child, .monitor-table td:first-child { padding-left: var(--s-4); }
+  .monitor-table th:last-child, .monitor-table td:last-child { padding-right: var(--s-4); }
+}
+@media (max-width: 767px) {
+  .monitor-bar { align-items: stretch; }
+  .monitor-bar .btn { width: 100%; }
+  .monitor-table { min-width: 0; }
+  /* thead был скрыт визуально (clip), но его кнопки сортировки оставались
+     в tab-порядке; display:none убирает их и отдаёт сортировку селекту. */
+  .monitor-table thead { display: none; }
+  .toolbar .monitor-sort { display: block; flex: 1 1 100%; }
+}
