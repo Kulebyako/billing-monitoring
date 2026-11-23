@@ -3,35 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="data:," />
   <title>Вход — Server Billing</title>
-  <link rel="stylesheet" href="/style.css" />
+  <style>
+    :root {
+      color-scheme: dark; --bg: #151514; --surface: #1e1e1c; --field: #262624; --border-strong: #72716a;
+      --text: #ecebe6; --muted: #a3a29a; --accent: #a3b3c4; --accent-ink: #151514; --danger: #e0806a;
+      --danger-bg: #3a2621; --ring: #a3b3c4; --ring-soft: rgba(163,179,196,.22); --danger-soft: rgb(224 128 106 / .18);
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: #151514; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 16px; background: var(--bg);
+      color: var(--text); font: 14px/1.25 var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+    .wrap { width: min(380px, 100%); display: grid; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; padding-left: 4px; }
+    .mark { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: #2f3338;
+      color: var(--accent); font-size: 11px; font-weight: 500; }
+    .card { background: var(--surface); border-radius: 16px; padding: 32px; display: grid; gap: 16px; }
+    h1 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 500; }
+    .sub { margin: -8px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+    label { display: grid; gap: 6px; font-size: 13px; line-height: 18px; color: var(--muted); }
+    input { height: 36px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--field);
+      color: var(--text); font: inherit; font-size: 14px; }
+    input::placeholder { color: var(--muted); }
+    input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-soft); }
+    input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+    button { height: 36px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink);
+      font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+    button:hover:not(:disabled) { background: var(--text); }
+    button:disabled { opacity: .5; cursor: progress; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .err { margin: 0; padding: 12px 16px; border-radius: 10px; background: var(--danger-bg); color: var(--danger);
+      font-size: 13px; line-height: 18px; }
+    .err[hidden] { display: none; }
+    @media (max-width: 480px) { .card { padding: 24px; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  </style>
 </head>
-<body class="login-page">
-  <form id="login" class="login-card">
-    <h1>Server Billing</h1>
-    <p class="muted">Панель синхронизации биллингов</p>
-    <label>Пароль
-      <input type="password" name="password" autocomplete="current-password" required />
-    </label>
-    <button type="submit">Войти</button>
-    <p id="err" class="error" hidden></p>
-  </form>
+<body>
+  <main class="wrap">
+    <div class="brand"><span class="mark" aria-hidden="true">S</span><span>Server Billing</span></div>
+    <form id="login" class="card">
+      <h1>Вход</h1>
+      <p class="sub">Панель синхронизации биллингов</p>
+      <label for="password">Пароль
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+      </label>
+      <button type="submit">Войти</button>
+      <p id="err" class="err" role="alert" hidden></p>
+    </form>
+  </main>
   <script>
-    document.getElementById('login').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = new FormData(e.target).get('password');
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) {
-        const err = document.getElementById('err');
-        err.hidden = false;
-        err.textContent = 'Неверный пароль';
-        return;
-      }
-      location.href = '/';
+    const form = document.getElementById('login'), err = document.getElementById('err');
+    const input = document.getElementById('password'), btn = form.querySelector('button');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (btn.disabled) return;
+      err.hidden = true;
+      input.removeAttribute('aria-invalid');
+      btn.disabled = true; btn.textContent = 'Вход…'; btn.setAttribute('aria-busy', 'true');
+      try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: new FormData(form).get('password') || '' }) });
+        if (res.ok) { location.href = '/'; return; }
+        err.textContent = res.status === 401 ? 'Неверный пароль'
+          : res.status === 429 ? 'Слишком много попыток. Подождите минуту и попробуйте снова.'
+          : 'Не удалось войти. Попробуйте ещё раз.';
+        err.hidden = false; input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', 'err'); input.focus();
+      } catch (e) { err.textContent = 'Не удалось войти. Попробуйте ещё раз.'; err.hidden = false; }
+      finally { btn.disabled = false; btn.textContent = 'Войти'; btn.removeAttribute('aria-busy'); }
     });
   </script>
 </body>
