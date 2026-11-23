@@ -508,7 +508,7 @@ function renderChart(d) {
     if (b.amount > 0) {
       const h = Math.max(3, Math.round((b.amount / max) * maxH));
       const title = `неделя ${i + 1}: ${sumsText(b.sums)}, ${b.count} ${plural(b.count, ['платёж', 'платежа', 'платежей'])}`;
-      svg += `<rect class="chart-bar" x="${cx - barW / 2}" y="${baseY - h}" width="${barW}" height="${h}" rx="2"><title>${esc(title)}</title></rect>`;
+      svg += `<rect class="chart-bar" x="${cx - barW / 2}" y="${baseY - h}" width="${barW}" height="${h}" rx="5"><title>${esc(title)}</title></rect>`;
     }
     svg += `<text class="chart-label" x="${cx}" y="${baseY + 26}" text-anchor="middle">${formatDayMonth(b.start)}</text>`;
   });
@@ -599,6 +599,7 @@ function renderServices(services) {
   if (!Array.isArray(services)) {
     if (countEl) countEl.textContent = '—';
     tbody.innerHTML = tableEmptyRow(10, emptyState('Данные не загружены', 'Нажмите «Повторить» в баннере выше.'));
+    scheduleTableOverflow();
     return;
   }
   const rows = services.filter((s) => {
@@ -618,9 +619,11 @@ function renderServices(services) {
         ? emptyState('Ничего не найдено', 'Измените фильтр или сбросьте его.', action)
         : emptyState('Услуг пока нет', 'Добавьте аккаунт провайдера — при синхронизации услуги появятся здесь.', '<a class="btn btn--outline btn--sm" href="#/providers">Добавить аккаунт</a>'),
     );
+    scheduleTableOverflow();
     return;
   }
   tbody.innerHTML = rows.map(serviceRow).join('');
+  scheduleTableOverflow();
 }
 
 /* ── рендер: аккаунты и сайдбар ──────────────────────────────────────────── */
@@ -653,6 +656,7 @@ function renderAccounts(accounts, state) {
   if (!Array.isArray(accounts)) {
     if (countEl) countEl.textContent = '—';
     tbody.innerHTML = tableEmptyRow(7, emptyState('Данные не загружены', 'Нажмите «Повторить» в баннере выше.'));
+    scheduleTableOverflow();
     return;
   }
   const rows = state ? accounts.filter((a) => syncGroup(a) === state) : accounts;
@@ -664,9 +668,11 @@ function renderAccounts(accounts, state) {
         ? emptyState('Ничего не найдено', 'Аккаунтов с таким состоянием синхронизации нет.', '<a class="btn btn--outline btn--sm" href="#/providers">Показать все аккаунты</a>')
         : emptyState('Нет подключённых аккаунтов', 'Добавьте первый аккаунт провайдера ниже.'),
     );
+    scheduleTableOverflow();
     return;
   }
   tbody.innerHTML = rows.map(accountRow).join('');
+  scheduleTableOverflow();
 }
 
 function renderSidebar(d) {
@@ -738,6 +744,40 @@ function renderSkeletonTables() {
   if (services) services.innerHTML = Array.from({ length: 6 }, () => cell(10)).join('');
   if (accounts) accounts.innerHTML = Array.from({ length: 3 }, () => cell(7)).join('');
   if (attention) attention.innerHTML = Array.from({ length: 2 }, () => cell(4)).join('');
+  syncTableOverflow();
+}
+
+/* ── подсказка о горизонтальном скролле таблиц ───────────────────────────── */
+/* Градиент у правого края нужен только там, где .table-wrap действительно переполнен
+   (на 1280 таблица услуг шире колонки контента, на 1600 — нет), и снимается в конце прокрутки. */
+let overflowRaf = 0;
+
+function syncTableOverflow() {
+  document.querySelectorAll('.table-shell').forEach((shell) => {
+    const wrap = shell.querySelector('.table-wrap');
+    if (!wrap) return;
+    const overflow = wrap.scrollWidth - wrap.clientWidth > 1;
+    const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1;
+    if (overflow && !atEnd) shell.setAttribute('data-scrollable', 'true');
+    else shell.removeAttribute('data-scrollable');
+  });
+}
+
+function scheduleTableOverflow() {
+  if (overflowRaf) return;
+  overflowRaf = window.requestAnimationFrame(() => {
+    overflowRaf = 0;
+    syncTableOverflow();
+  });
+}
+
+function watchTableOverflow() {
+  document.addEventListener('scroll', scheduleTableOverflow, true);
+  window.addEventListener('resize', scheduleTableOverflow);
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(scheduleTableOverflow);
+    document.querySelectorAll('.table-wrap').forEach((wrap) => ro.observe(wrap));
+  }
 }
 
 function renderAll(d) {
@@ -749,6 +789,7 @@ function renderAll(d) {
   renderSidebar(d);
   setBusy(false);
   focusPending();
+  syncTableOverflow();
 }
 
 function renderFatal() {
@@ -818,6 +859,7 @@ function applyRoute() {
     else a.removeAttribute('aria-current');
   });
   if (route.view === 'providers' && dashboard) renderAccounts(dashboard.accounts, route.state);
+  syncTableOverflow();
 }
 
 /* ── диалоги ─────────────────────────────────────────────────────────────── */
@@ -1218,6 +1260,7 @@ function init() {
   };
   if (typeof desktopMq.addEventListener === 'function') desktopMq.addEventListener('change', onViewportChange);
   applyDrawer(false);
+  watchTableOverflow();
 
   window.addEventListener('hashchange', applyRoute);
   applyRoute();

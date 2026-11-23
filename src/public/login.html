@@ -8,34 +8,37 @@
   <title>Вход — Server Billing</title>
   <style>
     :root {
-      color-scheme: dark; --bg: #151514; --surface: #1e1e1c; --field: #262624; --border-strong: #72716a;
-      --text: #ecebe6; --muted: #a3a29a; --accent: #a3b3c4; --accent-ink: #151514; --danger: #e0806a;
-      --danger-bg: #3a2621; --ring: #a3b3c4; --ring-soft: rgba(163,179,196,.22); --danger-soft: rgb(224 128 106 / .18);
+      color-scheme: dark; --bg: #0b0915; --surface: #121022; --field: #15122a; --border-strong: #6b63a8;
+      --text: #ece9f9; --muted: #a9a2c9; --accent: #9c93ff; --accent-ink: #0b0915; --danger: #ff8e9a;
+      --danger-bg: #351c25; --ring: #b0a8ff; --ring-soft: rgba(176,168,255,.2); --danger-soft: rgb(255 142 154 / .18);
+      --line-soft: rgb(156 147 255 / .12); --grad-card: linear-gradient(180deg,#16132c 0%,#121022 62%);
+      --glow: 0 8px 20px -10px rgb(156 147 255 / .6);
       --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
-    html { background: #151514; }
+    html { background: var(--bg); }
     body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 16px; background: var(--bg);
       color: var(--text); font: 14px/1.25 var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
     .wrap { width: min(380px, 100%); display: grid; gap: 20px; }
-    .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; padding-left: 4px; }
-    .mark { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: #2f3338;
-      color: var(--accent); font-size: 11px; font-weight: 500; }
-    .card { background: var(--surface); border-radius: 16px; padding: 32px; display: grid; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; padding-left: 4px; letter-spacing: .01em; }
+    .mark { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--accent);
+      color: var(--accent-ink); font-size: 11px; font-weight: 600; }
+    .card { background: var(--grad-card); border: 1px solid var(--line-soft); border-radius: 24px; padding: 32px;
+      display: grid; gap: 16px; box-shadow: 0 18px 48px -32px rgb(0 0 0 / .9); }
     h1 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 500; }
     .sub { margin: -8px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
     label { display: grid; gap: 6px; font-size: 13px; line-height: 18px; color: var(--muted); }
-    input { height: 36px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--field);
+    input { height: 40px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--field);
       color: var(--text); font: inherit; font-size: 14px; }
     input::placeholder { color: var(--muted); }
-    input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-soft); }
+    input:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-soft); }
     input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
-    button { height: 36px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink);
-      font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+    button { height: 40px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink);
+      font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: var(--glow); }
     button:hover:not(:disabled) { background: var(--text); }
     button:disabled { opacity: .5; cursor: progress; }
-    button:focus-visible, input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-    .err { margin: 0; padding: 12px 16px; border-radius: 10px; background: var(--danger-bg); color: var(--danger);
+    button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+    .err { margin: 0; padding: 12px 16px; border-radius: 14px; background: var(--danger-bg); color: var(--danger);
       font-size: 13px; line-height: 18px; }
     .err[hidden] { display: none; }
     @media (max-width: 480px) { .card { padding: 24px; } }

@@ -1,0 +1,172 @@
+/* Концепция C «Индиго» (slug: indigo) — слой поверх src/public/style.css.
+   Только для ревью и скриншотов: в бою токены и правила переносятся в style.css.
+   Идея: тихий вечерний кабинет — фиолетовая чернота, ирис, крупные мягкие формы,
+   свет вместо рамок, спокойные цифры.
+   ВАЖНО: источник истины — DESIGN.md §2.2 и боевой src/public/style.css;
+   этот слой — концепт для ревью и может упрощать правила компонентов. */
+
+:root {
+  color-scheme: dark;
+
+  /* поверхности */
+  --bg: #0b0915;
+  --surface: #121022;
+  --surface-2: #181530;
+  --surface-3: #1f1b3b;
+  --field: #15122a;
+  --fail-bg: #321a26;
+  --overlay: rgba(4, 3, 10, 0.6);
+  --row-hover: rgb(156 147 255 / 0.055);
+
+  /* линии */
+  --border: #292350;
+  --hairline: #1d1838;
+  --border-strong: #6b63a8;
+  --line-soft: rgb(156 147 255 / 0.12);
+
+  /* текст */
+  --text: #ece9f9;
+  --text-muted: #a9a2c9;
+  --text-dim: #8d85ae;
+  --text-faint: #6a6190;
+
+  /* акцент */
+  --accent: #9c93ff;
+  --accent-soft: #241f4a;
+  --accent-ink: #0b0915;
+
+  /* статусы */
+  --ok: #77dcae;
+  --ok-bg: #102a24;
+  --warn: #f3c978;
+  --warn-bg: #322816;
+  --danger: #ff8e9a;
+  --danger-bg: #351c25;
+  --danger-soft: rgb(255 142 154 / 0.18);
+
+  /* фокус */
+  --ring: #b0a8ff;
+  --ring-soft: rgba(176, 168, 255, 0.2);
+
+  /* график */
+  --chart-1: #9c93ff;
+  --chart-2: #77dcae;
+  --chart-3: #f0b8ff;
+
+  /* типографика */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Liberation Mono", "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, ui-monospace, monospace;
+
+  /* тени: фиолетовые, мягкие и глубокие */
+  --shadow-xs: 0 1px 2px rgb(2 1 8 / 0.45);
+  --shadow-sm: 0 2px 6px rgb(2 1 8 / 0.45);
+  --shadow-md: 0 16px 40px -18px rgb(2 1 8 / 0.9), 0 2px 8px rgb(2 1 8 / 0.5);
+  --shadow-lg: 0 28px 64px -24px rgb(2 1 8 / 0.95), 0 4px 12px rgb(2 1 8 / 0.55);
+
+  /* формы: крупные и мягкие */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-2xl: 24px;
+}
+
+/* ── приём 1: свет вместо рамок, мягкая «аврора» в главной карточке ──────── */
+.card {
+  border: 1px solid var(--line-soft);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #16132c 0%, #121022 62%);
+  box-shadow: 0 18px 48px -32px rgb(0 0 0 / 0.9);
+}
+.summary {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(156 147 255 / 0.11), transparent 56%),
+    linear-gradient(180deg, #171331 0%, #121022 64%);
+}
+.card-head { border-bottom: 1px solid rgb(156 147 255 / 0.08); }
+.table-card th { border-bottom: 1px solid var(--line-soft); }
+.table-card td { border-bottom: 1px solid rgb(156 147 255 / 0.07); }
+
+/* ── приём 2: тихая типографика и «дыхание» цифр ─────────────────────────── */
+.figure {
+  font-weight: 300;
+  font-size: 42px;
+  line-height: 1.04;
+  letter-spacing: -0.028em;
+  color: var(--text);
+}
+.figure .currency { color: var(--accent); font-size: 20px; margin-left: 6px; letter-spacing: 0; }
+.summary-label { font-weight: 400; color: var(--text-muted); font-size: 14px; letter-spacing: 0.01em; }
+.kpi-label { color: var(--text-muted); }
+.kpi-value { font-weight: 400; font-size: 20px; letter-spacing: -0.02em; }
+.kpi-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.75;
+  vertical-align: 1px;
+}
+.meta-line { color: var(--text-muted); font-size: 12.5px; }
+.upcoming-meta { color: var(--text-dim); }
+.upcoming-amount { font-variant-numeric: tabular-nums; }
+
+/* ── приём 3: свечение акцента на графике ────────────────────────────────── */
+.chart-bar {
+  fill: var(--chart-1);
+  rx: 5px;
+  filter: drop-shadow(0 0 9px rgb(156 147 255 / 0.38));
+}
+.chart-base { stroke: rgb(156 147 255 / 0.18); stroke-width: 1; }
+.chart-label { fill: var(--text-dim); font-size: 11px; letter-spacing: 0.02em; }
+.chart-caption { color: var(--text-dim); }
+
+/* ── сайдбар: мягкий, без границы, активный пункт — пилюля ───────────────── */
+.sidebar { background: var(--surface-2); }
+.brand-mark {
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.brand-name { font-weight: 400; letter-spacing: 0.01em; }
+.user-block { border-radius: 12px; background: rgb(11 9 21 / 0.65); }
+.nav-item { border-radius: 10px; }
+.nav-item[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgb(156 147 255 / 0.16);
+}
+.nav-item[aria-current="page"] .nav-icon { color: var(--accent); }
+.meter-track { height: 5px; background: rgb(156 147 255 / 0.14); }
+.meter-bar { background: linear-gradient(90deg, #7d74e8, var(--accent)); }
+
+/* ── бейджи-пилюли с полупрозрачной подложкой ────────────────────────────── */
+.badge {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+.badge--ok { background: rgb(119 220 174 / 0.14); color: var(--ok); }
+.badge--warn { background: rgb(243 201 120 / 0.14); color: var(--warn); }
+.badge--danger { background: rgb(255 142 154 / 0.15); color: var(--danger); }
+.badge--accent { background: rgb(156 147 255 / 0.16); color: var(--accent); }
+.badge--neutral { background: rgb(169 162 201 / 0.12); color: var(--text-muted); }
+.badge .glyph { color: currentColor; }
+
+/* ── шапка: полупрозрачная, с размытием ──────────────────────────────────── */
+.app-header {
+  background: rgb(11 9 21 / 0.82);
+  border-bottom: 1px solid rgb(156 147 255 / 0.09);
+  backdrop-filter: blur(10px);
+}
+.crumb-brand { color: var(--text-dim); }
+.btn { border-radius: 10px; font-weight: 500; }
+.btn--primary { box-shadow: 0 8px 20px -10px rgb(156 147 255 / 0.6); }
+input, select, textarea { border-radius: 10px; border-color: var(--border-strong); }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring-soft);
+}
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+dialog { border: 1px solid var(--line-soft); border-radius: 24px; }

@@ -1,0 +1,202 @@
+/* Концепция B «Фосфор» (slug: phosphor) — слой поверх src/public/style.css.
+   Только для ревью и скриншотов: в бою токены и правила переносятся в style.css.
+   Идея: терминал дежурной смены — зелёная чернота, кислотный лайм, моноширинные
+   подписи, квадратные формы, сегментная шкала. */
+
+:root {
+  color-scheme: dark;
+
+  /* поверхности */
+  --bg: #070b08;
+  --surface: #0d130f;
+  --surface-2: #111a14;
+  --surface-3: #16221a;
+  --field: #101812;
+  --fail-bg: #2e1915;
+  --overlay: rgba(2, 5, 3, 0.68);
+  --row-hover: rgb(182 240 74 / 0.045);
+
+  /* линии */
+  --border: #223026;
+  --hairline: #18241c;
+  --border-strong: #55705c;
+
+  /* текст */
+  --text: #dce9de;
+  --text-muted: #93a897;
+  --text-dim: #7b917f;
+  --text-faint: #5a6e5f;
+
+  /* акцент */
+  --accent: #b6f04a;
+  --accent-soft: #1d2a10;
+  --accent-ink: #101a05;
+
+  /* статусы */
+  --ok: #6fe0a0;
+  --ok-bg: #0f2a1d;
+  --warn: #f5c451;
+  --warn-bg: #332813;
+  --danger: #ff7d6b;
+  --danger-bg: #351a17;
+  --danger-soft: rgb(255 125 107 / 0.18);
+
+  /* фокус */
+  --ring: #b6f04a;
+  --ring-soft: rgba(182, 240, 74, 0.2);
+
+  /* график */
+  --chart-1: #b6f04a;
+  --chart-2: #6fe0a0;
+  --chart-3: #9bb8ff;
+
+  /* типографика */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Liberation Mono", "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, ui-monospace, monospace;
+
+  /* тени: зелёные, почти без рассеивания */
+  --shadow-xs: 0 1px 2px rgb(0 4 2 / 0.5);
+  --shadow-sm: 0 1px 2px rgb(0 4 2 / 0.55);
+  --shadow-md: 0 8px 24px -10px rgb(0 4 2 / 0.8), 0 1px 2px rgb(0 4 2 / 0.6);
+  --shadow-lg: 0 18px 48px -16px rgb(0 4 2 / 0.85), 0 2px 4px rgb(0 4 2 / 0.6);
+
+  /* формы: квадратные */
+  --r-sm: 0; --r-md: 2px; --r-lg: 2px; --r-xl: 4px; --r-2xl: 4px;
+}
+
+/* ── приём 1: моноширинная «распечатка» для всех служебных подписей ──────── */
+.nav-group-label,
+.kpi-label,
+.summary-label,
+.upcoming-title,
+.card-head h2,
+.table-card th,
+.chart-label,
+.meter-head,
+.sidebar-foot-note,
+.crumb,
+.count,
+.upcoming-meta {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+.card-head h2 { color: var(--text); font-size: 11.5px; }
+.summary-label { color: var(--text-muted); }
+.upcoming-title { color: var(--text-muted); }
+.nav-group-label { letter-spacing: 0.14em; }
+.nav-count { font-family: var(--font-mono); font-size: 11px; }
+.upcoming-amount { font-family: var(--font-mono); font-size: 12.5px; }
+.table-card .num { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: -0.02em; }
+
+/* ── приём 2: цифры как показания — лайм и моно ──────────────────────────── */
+.figure {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: -0.045em;
+}
+.figure .currency { color: var(--accent); font-size: 16px; margin-left: 6px; }
+.kpi-value { font-family: var(--font-mono); font-size: 20px; letter-spacing: -0.03em; }
+.meta-line { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.attention-line { font-family: var(--font-mono); font-size: 11.5px; }
+
+/* ── приём 3: сегментная шкала и «сканлайны» ─────────────────────────────── */
+.meter-track {
+  height: 6px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.meter-bar {
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 7px, transparent 7px 9px);
+}
+.chart-svg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(182 240 74 / 0.055) 0 1px,
+    transparent 1px 24px
+  );
+}
+.chart-bar { fill: var(--chart-1); rx: 0; }
+.chart-base { stroke: var(--border-strong); stroke-dasharray: 2 3; opacity: 0.7; }
+.chart-label { fill: var(--text-muted); }
+.chart-caption { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: none; letter-spacing: 0.01em; }
+
+/* ── сайдбар: тёмный, с лаймовым «питанием» ──────────────────────────────── */
+.sidebar {
+  background: #080d0a;
+  border-right: 1px solid var(--border);
+}
+.brand-mark {
+  border-radius: 2px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.brand-name { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px; }
+.nav-item { border-radius: 0; }
+.nav-item {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+.nav-item[aria-current="page"] {
+  background: transparent;
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: 0;
+  color: var(--accent);
+}
+.nav-item[aria-current="page"] .nav-icon { color: var(--accent); }
+
+.user-block { border-radius: 0; border: 1px solid var(--border); background: transparent; }
+
+/* ── бейджи-«штампы» с левым зубцом ──────────────────────────────────────── */
+.badge {
+  height: 20px;
+  padding: 0 4px 0 6px;
+  border-radius: 0;
+  box-shadow: inset 2px 0 0 currentColor;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.badge--ok { color: var(--ok); }
+.badge--warn { color: var(--warn); }
+.badge--danger { color: var(--danger); }
+.badge--accent { color: var(--accent); }
+.badge--neutral { color: var(--text-muted); }
+
+/* ── кнопки и поля ───────────────────────────────────────────────────────── */
+.btn {
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.btn--ghost { border-color: var(--border); }
+.icon-btn { border-radius: 2px; }
+input, select, textarea { border-radius: 0; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px var(--ring-soft);
+}
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+/* ── карточки: рамка вместо тени, без скруглений ─────────────────────────── */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: none;
+}
+.table-card { border-radius: 4px; }
+.card-head { border-bottom: 1px solid var(--border); }
+.table-card td { border-bottom: 1px solid var(--hairline); }

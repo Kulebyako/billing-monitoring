@@ -1,0 +1,209 @@
+/* Концепция A «Полночь» (slug: midnight) — слой поверх src/public/style.css.
+   Только для ревью и скриншотов: в бою токены и правила переносятся в style.css.
+   Идея: приборная панель ночной смены — синий графит, ледяной циан, микро-капс,
+   линейки как у измерительного прибора. */
+
+:root {
+  color-scheme: dark;
+
+  /* поверхности */
+  --bg: #0a0e15;
+  --surface: #111823;
+  --surface-2: #17202e;
+  --surface-3: #1d2838;
+  --field: #141c28;
+  --fail-bg: #311a1e;
+  --overlay: rgba(3, 6, 11, 0.62);
+  --row-hover: rgb(79 211 229 / 0.05);
+
+  /* линии */
+  --border: #223047;
+  --hairline: #1a2434;
+  --border-strong: #5b7495;
+
+  /* текст */
+  --text: #e7eef8;
+  --text-muted: #9fb0c6;
+  --text-dim: #8396b0;
+  --text-faint: #5e7290;
+
+  /* акцент */
+  --accent: #4fd3e5;
+  --accent-soft: #123039;
+  --accent-ink: #05161a;
+
+  /* статусы */
+  --ok: #7bdba4;
+  --ok-bg: #102a22;
+  --warn: #f3c76b;
+  --warn-bg: #332a16;
+  --danger: #ff8b7e;
+  --danger-bg: #351c1e;
+  --danger-soft: rgb(255 139 126 / 0.18);
+
+  /* фокус */
+  --ring: #5fdceb;
+  --ring-soft: rgba(95, 220, 235, 0.22);
+
+  /* график: циан — деньги, индиго и мята — резерв под вторую серию */
+  --chart-1: #4fd3e5;
+  --chart-2: #8fa8ff;
+  --chart-3: #7bdba4;
+
+  /* типографика */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Liberation Mono", "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, ui-monospace, monospace;
+
+  /* тени: синие, а не нейтральные — держат холод палитры */
+  --shadow-xs: 0 1px 2px rgb(0 3 8 / 0.42);
+  --shadow-sm: 0 1px 3px rgb(0 3 8 / 0.48);
+  --shadow-md: 0 8px 26px -8px rgb(0 3 8 / 0.72), 0 1px 3px rgb(0 3 8 / 0.45);
+  --shadow-lg: 0 18px 52px -14px rgb(0 3 8 / 0.8), 0 2px 6px rgb(0 3 8 / 0.5);
+
+  /* радиусы: собранные, «приборные» */
+  --r-sm: 3px; --r-md: 4px; --r-lg: 6px; --r-xl: 10px; --r-2xl: 12px;
+}
+
+/* ── приём 1: микро-капс с трекингом ─────────────────────────────────────── */
+.nav-group-label,
+.kpi-label,
+.summary-label,
+.upcoming-title,
+.card-head h2,
+.table-card th,
+.meter-head,
+.brand-name {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 11px;
+  font-weight: 500;
+}
+.nav-group-label { letter-spacing: 0.12em; color: var(--text-dim); }
+.kpi-label { letter-spacing: 0.08em; color: var(--text-dim); }
+.upcoming-meta { font-family: var(--font-mono); font-size: 11px; }
+.upcoming-amount { font-family: var(--font-mono); font-size: 12.5px; }
+.table-card .num { font-family: var(--font-mono); font-size: 13px; }
+
+/* ── приём 2: шкала КПИ как приборная полоса ─────────────────────────────── */
+.kpi {
+  gap: var(--s-4) 0;
+  border-top: 1px solid var(--border);
+}
+.kpi > div {
+  padding-left: var(--s-4);
+  border-left: 1px solid var(--hairline);
+}
+.kpi > div:first-child { padding-left: 0; border-left: 0; }
+.kpi-value {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.kpi-value.is-warn { color: var(--warn); }
+.kpi-value.is-danger { color: var(--danger); }
+.kpi-value.is-ok { color: var(--ok); }
+
+/* ── приём 3: деньги на «рельсе» ─────────────────────────────────────────── */
+.figure {
+  display: block;
+  width: fit-content;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 300;
+  letter-spacing: -0.015em;
+}
+.figure .currency {
+  color: var(--accent);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.meta-line { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); }
+.attention-line { font-size: var(--fs-13); }
+
+/* ── график: сетка-«прицел», квадратные столбики ─────────────────────────── */
+.chart-svg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(79 211 229 / 0.07) 0 1px,
+    transparent 1px 26px
+  );
+}
+.chart-bar {
+  fill: var(--chart-1);
+  rx: 0;
+}
+.chart-base {
+  stroke: var(--border-strong);
+  stroke-dasharray: 1 4;
+  opacity: 0.55;
+}
+.chart-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  fill: var(--text-dim);
+}
+.chart-caption { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+
+/* ── сайдбар: чип активного пункта + метка-плашка бренда ─────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--hairline);
+}
+.brand-mark {
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.nav-item { border-radius: 3px; }
+.nav-item[aria-current="page"] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgb(79 211 229 / 0.32);
+  border-radius: 3px;
+}
+.nav-count { font-family: var(--font-mono); }
+.meter-track { height: 3px; border-radius: 0; }
+.meter-bar { border-radius: 0; }
+.sidebar-foot-note { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em; }
+
+/* ── бейджи-«капсулы» с контурным статусом ───────────────────────────────── */
+.badge {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.badge--ok { border-color: rgb(123 219 164 / 0.36); }
+.badge--warn { border-color: rgb(243 199 107 / 0.36); }
+.badge--danger { border-color: rgb(255 139 126 / 0.4); }
+.badge--accent { border-color: rgb(79 211 229 / 0.38); }
+.badge--neutral { border-color: rgb(159 176 198 / 0.24); }
+
+/* ── кнопки и поля ───────────────────────────────────────────────────────── */
+.btn { border-radius: 4px; }
+.btn--primary { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.01em; }
+input, select, textarea { border-radius: 3px; }
+
+/* ── фокус: двойное кольцо, как у прибора ────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring-soft);
+}
+
+/* карточки: тонкая рамка вместо мягкой тени — панель читается как прибор */
+.card {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  border-radius: 10px;
+}
+.table-card { border-radius: 10px; }

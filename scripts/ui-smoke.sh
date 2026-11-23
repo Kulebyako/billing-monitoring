@@ -140,9 +140,33 @@ for token in --bg --surface --surface-2 --surface-3 --field --fail-bg --overlay 
   --border-strong --text --text-muted --text-dim --text-faint --accent --accent-soft --accent-ink --ok --ok-bg \
   --warn --warn-bg --danger --danger-bg --danger-soft --ring --ring-soft --fs-12 --fs-13 --fs-14 --fs-15 \
   --fs-18 --fs-34 --tracking-figure --s-1 --s-16 --r-sm --r-2xl --shadow-xs --shadow-lg --sidebar-w \
-  --sidebar-w-drawer --header-h --content-max --gutter --ease --dur; do
+  --sidebar-w-drawer --header-h --content-max --gutter --ease --dur \
+  --line-soft --row-line --active-line --header-line --sticky-bg --chart-1 --chart-2 --chart-3 --grad-card \
+  --grad-summary --grad-meter --header-bg --user-bg --meter-bg --badge-ok-bg --badge-warn-bg --badge-danger-bg \
+  --badge-accent-bg --badge-neutral-bg --edge-fade --shadow-card --glow-accent --glow-chart; do
   if grep -q -- "$token:" "$PUBLIC/style.css"; then pass "токен $token"; else fail "токен $token отсутствует"; fi
 done
+
+section "статика: палитра «Индиго»"
+for pair in "--bg: #0b0915" "--surface: #121022" "--surface-2: #181530" "--surface-3: #1f1b3b" \
+  "--field: #15122a" "--border: #292350" "--hairline: #1d1838" "--border-strong: #6b63a8" \
+  "--text: #ece9f9" "--text-muted: #a9a2c9" "--accent: #9c93ff"; do
+  if grep -qF -- "$pair" "$PUBLIC/style.css"; then pass "индиго: $pair"; else fail "индиго: нет $pair"; fi
+done
+
+if grep -nE '#151514|#1e1e1c|#232321|#2a2a27|#ecebe6|#a3b3c4|#92b095|#cfa968|#e0806a' "$PUBLIC"/* >/dev/null 2>&1; then
+  fail "остались хексы прежней палитры: $(grep -nE '#151514|#1e1e1c|#232321|#2a2a27|#ecebe6|#a3b3c4|#92b095|#cfa968|#e0806a' "$PUBLIC"/* | head -3 | tr '\n' ' ')"
+else
+  pass "нет хексов прежней палитры (#151514, #1e1e1c, #ecebe6, #a3b3c4, #92b095, #cfa968, #e0806a)"
+fi
+
+if grep -q 'data-scrollable="true"' "$PUBLIC/style.css" &&
+  grep -q 'function syncTableOverflow()' "$PUBLIC/app.js" &&
+  grep -q 'watchTableOverflow();' "$PUBLIC/app.js"; then
+  pass "подсказка горизонтального скролла: data-scrollable по фактическому overflow, любая ширина ≥768"
+else
+  fail "подсказка горизонтального скролла не привязана к фактическому overflow"
+fi
 
 if [ "${SMOKE_STATIC_ONLY:-0}" = "1" ]; then
   section "итог"
