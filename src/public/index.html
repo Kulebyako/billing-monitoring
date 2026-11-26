@@ -304,7 +304,7 @@
           <div class="card-head">
             <h2 id="monitor-hosts-title">Хосты <span class="count" id="monitor-hosts-count">—</span></h2>
             <div class="toolbar">
-              <label class="check" title="Проблемные: ICMP или node-exporter не отвечают, CPU/RAM/диск ≥ 90 %">
+              <label class="check" id="monitor-problems-label">
                 <input type="checkbox" id="monitor-problems" />
                 <span>Только проблемные</span>
               </label>
@@ -332,6 +332,7 @@
               <button class="btn btn--ghost btn--sm" id="monitor-reset" type="button" hidden>Сбросить</button>
             </div>
           </div>
+          <p class="monitor-legend" id="monitor-legend"></p>
           <div class="table-shell">
             <div class="table-wrap">
               <table class="monitor-table" id="monitor-hosts" role="table" aria-busy="true">

@@ -929,7 +929,29 @@ th[aria-sort="descending"] .th-sort::after { transform: rotate(180deg); }
 
 .monitor-table .cell-name { min-width: 140px; }
 .monitor-instance { display: block; margin-top: 2px; color: var(--text-dim); font-size: var(--fs-12); }
-.monitor-flag { margin-top: 2px; }
+/* Причина на бейдже — обычный поток ячейки: текст переносится, высота растёт,
+   сетка таблицы не расширяется (проверяется на 360/768/1280/1600). */
+.monitor-flag {
+  max-width: 100%;
+  height: auto;
+  min-height: 22px;
+  margin-top: 3px;
+  padding: 4px 8px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  text-align: left;
+}
+/* Легенда «Проблема»: правило и порог вплотную к таблице и тулбару. */
+.monitor-legend {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--header-line);
+  color: var(--text-muted);
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+}
+.monitor-legend__lead { color: var(--danger); font-weight: 500; }
+@media (min-width: 768px) { .monitor-legend { padding-inline: var(--s-6); } }
 
 /* баннер «VM недоступна» — предупреждающий тон того же компонента ошибки */
 .app-error--warn { background: var(--warn-bg); }
@@ -962,4 +984,7 @@ th[aria-sort="descending"] .th-sort::after { transform: rotate(180deg); }
      в tab-порядке; display:none убирает их и отдаёт сортировку селекту. */
   .monitor-table thead { display: none; }
   .toolbar .monitor-sort { display: block; flex: 1 1 100%; }
+  /* карточка: причина — второй строкой под именем хоста, а не в узкой колонке 96px */
+  .monitor-table td.cell-name { max-width: none; }
+  .monitor-table td.cell-name .monitor-flag { grid-column: 2; grid-row: 2; justify-self: start; }
 }

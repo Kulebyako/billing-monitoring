@@ -736,10 +736,53 @@ function formatUptime(seconds) {
   return `${minutes} мин`;
 }
 
+// Ресурсные причины флага «проблема»: подпись на бейдже и полная формулировка
+// для title/aria-label. Порог — только MONITOR_PROBLEM_PCT, число не дублируется.
+const MONITOR_PROBLEM_METRICS = [
+  { key: 'cpu', label: 'CPU' },
+  { key: 'ram', label: 'RAM' },
+  { key: 'disk', label: 'диск' },
+];
+
+function monitorProblemReasons(row) {
+  if (!row) return [];
+  const reasons = [];
+  if (row.icmpUp === false) reasons.push({ short: 'ICMP down', full: 'ICMP недоступен' });
+  if (row.nodeUp === false) reasons.push({ short: 'node down', full: 'node-exporter недоступен' });
+  for (const { key, label } of MONITOR_PROBLEM_METRICS) {
+    const value = row[key] == null ? null : Number(row[key]);
+    if (value == null || !Number.isFinite(value) || value < MONITOR_PROBLEM_PCT) continue;
+    const pct = `${Math.round(value)}%`;
+    reasons.push({ short: `${label} ${pct}`, full: `${label} ${pct} (порог ${MONITOR_PROBLEM_PCT}%)` });
+  }
+  return reasons;
+}
+
 function monitorIsProblem(row) {
-  if (!row) return false;
-  if (row.icmpUp === false || row.nodeUp === false) return true;
-  return [row.cpu, row.ram, row.disk].some((v) => v != null && Number(v) >= MONITOR_PROBLEM_PCT);
+  return monitorProblemReasons(row).length > 0;
+}
+
+// Видимый текст бейджа: одна-две причины целиком, дальше «+N»; полный список
+// уходит в title и aria-label — title не читается на тач-экранах и с клавиатуры.
+function monitorProblemFlag(row) {
+  const reasons = monitorProblemReasons(row);
+  if (!reasons.length) return null;
+  const shown = reasons.slice(0, 2).map((reason) => reason.short).join(' · ');
+  const rest = reasons.length - 2;
+  return {
+    label: `проблема · ${shown}${rest > 0 ? ` +${rest}` : ''}`,
+    full: `Проблема: ${reasons.map((reason) => reason.full).join('; ')}`,
+  };
+}
+
+// Правило флага и порог — рядом с таблицей, чтобы «проблема» не требовала догадок.
+// Одна формулировка на легенду и на подсказку фильтра: порог только из константы.
+function monitorProblemRule() {
+  return `ICMP или node-exporter недоступны; CPU, RAM или диск ≥ ${MONITOR_PROBLEM_PCT}%`;
+}
+
+function monitorLegendHtml() {
+  return `<span class="monitor-legend__lead">Проблема:</span> ${monitorProblemRule()}`;
 }
 
 function monitorValue(row, key) {
@@ -857,14 +900,18 @@ function monitorStatusCell(up, okTitle, badTitle) {
 }
 
 function monitorRowHtml(row) {
-  const problem = monitorIsProblem(row);
+  const flag = monitorProblemFlag(row);
   const host = esc(row.host);
   const instance = row.instance ? `<span class="monitor-instance mono">${esc(row.instance)}</span>` : '';
   // null-метрики на десктопе показывают «—», а в карточном режиме (<768)
   // помечены data-empty и скрываются: «CPU —» на телефоне только шумит.
   const empty = (is) => (is ? ' data-empty' : '');
-  return `<tr role="row"${problem ? ' class="is-fail"' : ''}>
-    <td role="cell" data-label="Хост" class="cell-name"><div class="name-cell"><span class="truncate" title="${host}">${host}</span>${instance}</div>${problem ? '<span class="badge badge--danger monitor-flag">проблема</span>' : ''}</td>
+  // Причина — видимым текстом; полный список дублируется в title и aria-label.
+  const flagHtml = flag
+    ? `<span class="badge badge--danger monitor-flag" title="${esc(flag.full)}" aria-label="${esc(flag.full)}">${esc(flag.label)}</span>`
+    : '';
+  return `<tr role="row"${flag ? ' class="is-fail"' : ''}>
+    <td role="cell" data-label="Хост" class="cell-name"><div class="name-cell"><span class="truncate" title="${host}">${host}</span>${instance}</div>${flagHtml}</td>
     <td role="cell" data-label="Провайдер">${row.provider ? `<span class="truncate" title="${esc(providerLabel(row.provider))}">${esc(providerLabel(row.provider))}</span>` : '<span class="dim">—</span>'}</td>
     <td role="cell" data-label="Роль">${row.role ? `<span class="truncate" title="${esc(row.role)}">${esc(row.role)}</span>` : '<span class="dim">—</span>'}</td>
     <td role="cell" data-label="ICMP" class="cell-status"${empty(row.icmpUp == null)}>${monitorStatusCell(row.icmpUp, 'ICMP: хост отвечает', 'ICMP: хост не отвечает')}</td>
@@ -951,6 +998,10 @@ function renderMonitor() {
 
   if (metaEl) metaEl.innerHTML = monitorMetaHtml();
 
+  // Легенда не зависит от снимка: правило и порог видны и до первой загрузки.
+  const legendEl = document.getElementById('monitor-legend');
+  if (legendEl) legendEl.innerHTML = monitorLegendHtml();
+
   const offline = monitorOffline();
   let bannerTitle = '';
   let bannerText = '';
@@ -998,7 +1049,12 @@ function renderMonitor() {
   monitor.role = fillMonitorFilter('monitor-role', monitorFilterValues(rows, 'role'), 'Все роли');
   const visible = monitorVisibleRows(rows);
   const problemsInput = document.getElementById('monitor-problems');
-  if (problemsInput) problemsInput.checked = monitor.problemsOnly;
+  if (problemsInput) {
+    problemsInput.checked = monitor.problemsOnly;
+    // Подсказка фильтра тоже берёт порог из константы, а не из вёрстки.
+    const problemsLabel = document.getElementById('monitor-problems-label');
+    if (problemsLabel) problemsLabel.title = `Проблемные хосты: ${monitorProblemRule()}`;
+  }
   const reset = document.getElementById('monitor-reset');
   if (reset) reset.hidden = !(monitor.provider || monitor.role || monitor.problemsOnly);
 

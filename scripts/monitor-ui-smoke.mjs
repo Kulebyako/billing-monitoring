@@ -727,6 +727,191 @@ async function main() {
       await waitForFunction(page, () => document.querySelectorAll('#monitor-hosts-body tr td[data-label="Хост"]').length === 4, 'возврат к живым данным');
     });
 
+    await step('причины «проблемы»: текст на бейдже, полный список в title/aria-label, легенда с порогом', async () => {
+      // Легенда живёт рядом с таблицей и называет правило с порогом из
+      // MONITOR_PROBLEM_PCT (90), а не из копии числа в вёрстке.
+      const legend = (await page.locator('#monitor-legend').textContent()).replace(/\s+/g, ' ').trim();
+      assert.equal(
+        legend,
+        'Проблема: ICMP или node-exporter недоступны; CPU, RAM или диск ≥ 90%',
+        `легенда: ${legend}`,
+      );
+      const legendVisible = await page.locator('#monitor-legend').isVisible();
+      assert.ok(legendVisible, 'легенда видна рядом с таблицей');
+
+      // Живые данные: beta проблемная по ICMP и node-exporter — причина не
+      // прячется в title, а читается прямо на бейдже.
+      const live = await page.evaluate(() => {
+        const row = [...document.querySelectorAll('#monitor-hosts-body tr')].find((tr) =>
+          (tr.querySelector('td[data-label="Хост"]')?.textContent ?? '').includes('beta'),
+        );
+        const flag = row?.querySelector('.monitor-flag');
+        return flag
+          ? {
+              text: (flag.textContent ?? '').replace(/\s+/g, ' ').trim(),
+              title: flag.getAttribute('title'),
+              aria: flag.getAttribute('aria-label'),
+            }
+          : null;
+      });
+      assert.ok(live, 'у проблемного beta есть бейдж');
+      assert.equal(live.text, 'проблема · ICMP down · node down', `видимый текст бейджа: ${live.text}`);
+      assert.match(live.title, /^Проблема: ICMP недоступен; node-exporter недоступен$/, `title: ${live.title}`);
+      assert.equal(live.aria, live.title, 'aria-label повторяет полный список причин');
+
+      const updatedAt = new Date().toISOString();
+      const mkHost = (over) => ({
+        host: 'host',
+        provider: 'landvps',
+        role: 'app',
+        env: 'prod',
+        instance: null,
+        icmpUp: true,
+        rttP50Ms: 1,
+        rttP95Ms: 2,
+        nodeUp: true,
+        cpu: 10,
+        ram: 20,
+        disk: 30,
+        load1: 0.1,
+        bootTime: null,
+        uptimeSec: 100,
+        ufwEnabled: 1,
+        ufwBlocks1h: 0,
+        fail2banBanned: 0,
+        ...over,
+      });
+      const reasonHosts = {
+        available: true,
+        updatedAt,
+        cached: false,
+        hosts: [
+          mkHost({ host: 'ok-host', cpu: 89, ram: 89.9, disk: 89 }),
+          mkHost({ host: 'disk-host', disk: 95 }),
+          mkHost({ host: 'multi-host', icmpUp: false, nodeUp: false, cpu: 95, ram: 96, disk: 97 }),
+        ],
+      };
+      await page.route('**/api/monitor/hosts', (route) => route.fulfill({ json: reasonHosts }));
+      await clickMonitorRefresh(page);
+      await waitForFunction(
+        page,
+        () => document.querySelectorAll('#monitor-hosts-body tr td[data-label="Хост"]').length === 3,
+        'замоканные строки с причинами',
+      );
+
+      const rows = await page.$$eval('#monitor-hosts-body tr[role="row"]', (trs) =>
+        trs
+          .filter((tr) => tr.querySelector('td[data-label="Хост"]'))
+          .map((tr) => {
+            const cell = tr.querySelector('td[data-label="Хост"]');
+            const flag = cell.querySelector('.monitor-flag');
+            return {
+              host: (cell.querySelector('.truncate')?.textContent ?? '').trim(),
+              isFail: tr.classList.contains('is-fail'),
+              flag: flag
+                ? {
+                    text: (flag.textContent ?? '').replace(/\s+/g, ' ').trim(),
+                    title: flag.getAttribute('title'),
+                    aria: flag.getAttribute('aria-label'),
+                  }
+                : null,
+            };
+          }),
+      );
+      assert.equal(rows.length, 3, `строк: ${rows.length}`);
+      const byHost = (prefix) => {
+        const row = rows.find((item) => item.host.startsWith(prefix));
+        assert.ok(row, `строка «${prefix}» не найдена: ${rows.map((r) => r.host).join(', ')}`);
+        return row;
+      };
+
+      // Диск 95% — причина видимым текстом; полный список и порог в title/aria.
+      const disk = byHost('disk-host');
+      assert.ok(disk.isFail, 'disk-host подсвечен как проблемный');
+      assert.ok(disk.flag, 'у disk-host есть бейдж');
+      assert.equal(disk.flag.text, 'проблема · диск 95%', `бейдж disk-host: ${disk.flag.text}`);
+      assert.match(disk.flag.title, /^Проблема: диск 95% \(порог 90%\)$/, `title disk-host: ${disk.flag.title}`);
+      assert.equal(disk.flag.aria, disk.flag.title, 'aria-label disk-host содержит причину');
+
+      // Больше двух причин: первые две + «+N», полный список — в title/aria.
+      const multi = byHost('multi-host');
+      assert.equal(multi.flag.text, 'проблема · ICMP down · node down +3', `бейдж multi-host: ${multi.flag.text}`);
+      assert.match(
+        multi.flag.title,
+        /^Проблема: ICMP недоступен; node-exporter недоступен; CPU 95% \(порог 90%\); RAM 96% \(порог 90%\); диск 97% \(порог 90%\)$/,
+        `title multi-host: ${multi.flag.title}`,
+      );
+      assert.equal(multi.flag.aria, multi.flag.title, 'aria-label multi-host содержит все причины');
+
+      // Здоровый хост (все значения ниже порога) бейджа не получает.
+      const healthy = byHost('ok-host');
+      assert.equal(healthy.flag, null, 'у ok-host нет бейджа');
+      assert.ok(!healthy.isFail, 'ok-host не подсвечен');
+      const firstHealthy = rows.findIndex((row) => !row.flag);
+      assert.ok(rows.slice(0, firstHealthy).every((row) => row.flag), 'проблемные строки сверху');
+
+      // 360/768/1280/1600: длинные причины не переполняют ни карточку, ни
+      // страницу; легенда переносится и остаётся в экране.
+      for (const width of [360, 768, 1280, 1600]) {
+        await page.setViewportSize({ width, height: 900 });
+        await delay(250);
+        const layout = await page.evaluate(() => {
+          const doc = document.documentElement;
+          const overflowing = [];
+          for (const tr of document.querySelectorAll('#monitor-hosts-body tr')) {
+            const cell = tr.querySelector('td[data-label="Хост"]');
+            const flag = cell?.querySelector('.monitor-flag');
+            if (!flag) continue;
+            const cellRect = cell.getBoundingClientRect();
+            const flagRect = flag.getBoundingClientRect();
+            const cardRect = tr.getBoundingClientRect();
+            const host = (cell.querySelector('.truncate')?.textContent ?? '').trim();
+            if (flagRect.right > cellRect.right + 1 || flagRect.left < cellRect.left - 1) {
+              overflowing.push(`${host}: бейдж вне ячейки`);
+            }
+            if (flagRect.right > cardRect.right + 1 || flagRect.left < cardRect.left - 1) {
+              overflowing.push(`${host}: бейдж вне карточки`);
+            }
+            if (flag.scrollWidth > flag.clientWidth + 1) {
+              overflowing.push(`${host}: текст бейджа обрезан (${flag.scrollWidth} > ${flag.clientWidth})`);
+            }
+          }
+          const legendEl = document.getElementById('monitor-legend');
+          const legendRect = legendEl.getBoundingClientRect();
+          return {
+            pageOverflow: doc.scrollWidth - doc.clientWidth,
+            overflowing,
+            legendOverflow: legendEl.scrollWidth - legendEl.clientWidth,
+            legendFits: legendRect.width > 0 && legendRect.right <= doc.clientWidth + 1,
+          };
+        });
+        const at = `${width}px`;
+        assert.ok(layout.pageOverflow <= 1, `${at}: страница не скроллится по горизонтали (${layout.pageOverflow}px)`);
+        assert.deepEqual(layout.overflowing, [], `${at}: ${layout.overflowing.join('; ')}`);
+        assert.ok(layout.legendOverflow <= 1, `${at}: легенда переносится без обрезки (${layout.legendOverflow}px)`);
+        assert.ok(layout.legendFits, `${at}: легенда помещается в экран`);
+
+        // MONITOR_UI_SCREENSHOT_DIR — кадры состояния с причинами для ревью дизайна.
+        if (process.env.MONITOR_UI_SCREENSHOT_DIR && (width === 360 || width === 1280)) {
+          fs.mkdirSync(process.env.MONITOR_UI_SCREENSHOT_DIR, { recursive: true });
+          await page.screenshot({
+            path: path.join(process.env.MONITOR_UI_SCREENSHOT_DIR, `monitor-reasons-${width}.png`),
+            fullPage: true,
+          });
+        }
+      }
+
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await delay(200);
+      await page.unroute('**/api/monitor/hosts');
+      await clickMonitorRefresh(page);
+      await waitForFunction(
+        page,
+        () => document.querySelectorAll('#monitor-hosts-body tr td[data-label="Хост"]').length === 4,
+        'возврат к живым данным после причин',
+      );
+    });
+
     await step('пустой список хостов: понятное пустое состояние вместо таблицы', async () => {
       const updatedAt = new Date().toISOString();
       await page.route('**/api/monitor/overview', (route) =>

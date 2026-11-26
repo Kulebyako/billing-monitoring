@@ -22,7 +22,8 @@ for id in summary services accounts add-account filter-provider filter-tag provi
   attention skeleton main \
   view-monitor monitor-summary monitor-kpi monitor-meta monitor-refresh monitor-banner monitor-banner-title \
   monitor-banner-text monitor-banner-retry monitor-table-card monitor-hosts monitor-hosts-body monitor-hosts-count \
-  monitor-problems monitor-provider monitor-role monitor-reset monitor-sort; do
+  monitor-problems monitor-provider monitor-role monitor-reset monitor-sort \
+  monitor-legend monitor-problems-label; do
   if grep -q "id=\"$id\"" "$PUBLIC/index.html"; then pass "id #$id"; else fail "id #$id отсутствует в index.html"; fi
 done
 
@@ -225,6 +226,28 @@ if grep -q 'available === false' "$PUBLIC/app.js" &&
   pass "состояние «VM недоступна»: отдельный баннер с причиной"
 else
   fail "нет отдельного состояния available:false"
+fi
+
+# причины флага «проблема»: один порог-константа, видимый текст причины, полный
+# список в title/aria-label, легенда с правилом — без копии числа в вёрстке
+if grep -q 'const MONITOR_PROBLEM_PCT = 90;' "$PUBLIC/app.js" &&
+  grep -q 'function monitorProblemReasons(row)' "$PUBLIC/app.js" &&
+  grep -q 'function monitorProblemFlag(row)' "$PUBLIC/app.js" &&
+  grep -q 'reasons.slice(0, 2)' "$PUBLIC/app.js" &&
+  grep -q 'aria-label="${esc(flag.full)}"' "$PUBLIC/app.js" &&
+  grep -q 'ICMP или node-exporter недоступны; CPU, RAM или диск' "$PUBLIC/app.js" &&
+  grep -q 'id="monitor-legend"' "$PUBLIC/index.html" &&
+  ! grep -qE '≥[[:space:]]*90|90[[:space:]]?%' "$PUBLIC/index.html"; then
+  pass "причины «проблемы»: MONITOR_PROBLEM_PCT, бейдж + title/aria, легенда с порогом"
+else
+  fail "причины/легенда «проблемы» не привязаны к MONITOR_PROBLEM_PCT или порог продублирован"
+fi
+
+# бейдж с причинами переносится внутри ячейки, а не расширяет таблицу
+if awk '/^\.monitor-flag \{/,/^\}/' "$PUBLIC/style.css" | grep -q 'white-space: normal'; then
+  pass "бейдж-причина переносится строкой внутри ячейки (white-space: normal)"
+else
+  fail "бейдж-причина не переносится (нет white-space: normal)"
 fi
 
 missing_labels=""
